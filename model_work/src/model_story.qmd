@@ -1,0 +1,1533 @@
+---
+title: "Model Story"
+format: html
+editor: source
+---
+
+# Ectomycorrhizal mutualist networks and their influence on system outcomes
+
+```{r, message=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(gganimate)
+library(gifski)
+library(viridis)
+library(viridisLite)
+library(plotly)
+library(latex2exp)
+
+
+b.color = "#48754d"
+n.color = "#e8b372"
+f.color = "#8d62a8"
+
+
+  
+b.color = "#85A389"
+n.color = "#A2CDB0"
+f.color = "#F1C27B"
+
+prim.color = "#3b78a3"
+alt.color = "#bd4665"
+
+log.max = function(x){
+  case_when(
+    log(x) > 5 ~ 5,
+    log(x) < -5 ~ -5,
+    .default = log(x)
+  )
+}
+```
+
+This document outlines the current direction of how I have been analyzing this model. It is grounded in the idea that we really do not have a sound set of expectations for the ways in which mutualism networks will impact community outcomes in ectomycorrhizal systems. To take a jab at this, I am focusing on two aspects of mutualism networks: 1) firstly, I am looking at percent allocation to primary versus alternate partners 2) secondly, I am looking at the degree to which members of the network are able to assess the quality of the partners they are associated with. The first I will refer to as 'partner preference' and the second I will refer to as Return On Investment or simply ROI. 
+
+I believe that inquiring about the degree of each of these modes on control in a symbiosis has the potential to provide insights into the possible vulnerabilities and benefits of different adaptive strategies. We start by building up the model before getting into questions. 
+
+
+
+## One tree - one fungus
+
+```{r}
+#parameter values 
+# See two tree two fungus section for a full annotation of what each parameter refers to!
+tset = seq(from = 0, to = 100, by = 0.01)
+a <- 0.25
+p1 <- .5
+mB1 <- .15
+mN1 <- mB1
+epsilon <- 0.15
+mF1 <- 0.1
+u1 <- .25
+N0 <- 100
+
+#holding vectors and initial conditions
+b1.set = rep(NaN, length(tset)); b1.set[1] <- 65
+n1.set = rep(NaN, length(tset)); n1.set[1] <- b1.set[1]*0.5
+f1.set = rep(NaN, length(tset)); f1.set[1] <- b1.set[1]*0.15
+e.set = rep(NaN, length(tset));  e.set[1]  <- 100 - n1.set[1]
+
+for(i in 2:length(tset)){
+  dt <- tset[i]-tset[i-1]
+  B1 <- b1.set[i-1];  N1 <- n1.set[i-1]; F1 <- f1.set[i-1]; E <- e.set[i-1]
+
+  dB1 <- (p1*N1 - (a+mB1)*B1)*dt
+  dN1 <- (E*(u1*F1) - mN1*N1)*dt
+  dF1 <- ((a*B1)*epsilon - mF1*F1)*dt
+
+  
+b1.set[i] <- B1 + dB1;n1.set[i] <- N1 + dN1;f1.set[i] <- F1 + dF1;e.set[i] <- E - (dN1)}
+```
+
+```{r, echo = FALSE}
+sim.1t1f = tibble(time = tset) %>% 
+  mutate(b1 = b1.set)%>% 
+  mutate(n1 = n1.set)%>% 
+  mutate(f1 = f1.set)%>% 
+  mutate(e = e.set)  
+
+long.1t1f = sim.1t1f %>% 
+  select(time:f1) %>% 
+  pivot_longer(cols = b1:f1, names_to = "pool", values_to = 'size') %>% 
+  mutate(rep = str_sub(pool, 2,2)) %>% 
+  mutate(pool = str_sub(pool, 1,1)) %>%
+  group_by(pool, rep) %>% 
+ slice(which(row_number() %% 51 == 1)) 
+
+plot.1t1f = 
+  ggplot(long.1t1f, aes(x = time, y = size, color = pool))+
+  geom_line(aes(linetype = rep), size = 1.5)+
+  labs(x = "Time (yrs)", y = "Pool Size")+
+  scale_color_manual(name = "", breaks = c("b", "n", "f"), labels = c("Host biomass", "Host nitrogen", "Fungal biomass"), values = c(b.color, n.color, f.color))+
+  theme_classic()+guides(linetype = "none")#+transition_reveal(time)
+
+ # animate(plot.1t1f, duration = 5, renderer = gifski_renderer(loop = FALSE), 
+ #         height = 5, width = 7, units = "in", res = 300)
+# anim_save(here("esa", "plot2t2f.gif"))
+
+plot.1t1f
+```
+
+## Two trees - one fungus
+
+```{r}
+primary.weight = 0.5001
+#parameter values
+tset = seq(from = 0, to = 5000, by = 0.01)
+a <- 0.25
+p1 <- .5
+p2 <- p1
+mB1 <- .15
+mB2 <- .15
+mN1 <- mB1
+mN2 <- mB2
+epsilon <- 0.15
+mF1 <- 0.1
+u1 <- .25
+s11 <- primary.weight
+s12 <- 1-s11
+N0 <- 100
+l = 0.5
+
+#holding vectors and initial conditions
+b1.set = rep(NaN, length(tset)); b1.set[1] <- 50
+b2.set = rep(NaN, length(tset)); b2.set[1] <- 50
+n1.set = rep(NaN, length(tset)); n1.set[1] <- b1.set[1]*0.5
+n2.set = rep(NaN, length(tset)); n2.set[1] <- b2.set[1]*0.5
+f1.set = rep(NaN, length(tset)); f1.set[1] <- b1.set[1]*0.15
+e.set = rep(NaN, length(tset));  e.set[1]  <- 100 - n1.set[1]-n2.set[1]
+
+#historical sharing percentages based on relative size of each 
+f1n1.set = rep(NaN, length(tset)); f1n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f1n2.set = rep(NaN, length(tset)); f1n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+
+for(i in 2:length(tset)){
+  dt <- tset[i]-tset[i-1]
+  B1 <- b1.set[i-1];  N1 <- n1.set[i-1]; F1 <- f1.set[i-1]
+  B2 <- b2.set[i-1];  N2 <- n2.set[i-1]; E  <- e.set[i-1]
+  f1ton1 <- f1n1.set[i-1]; f1ton2 <- f1n2.set[i-1]
+  
+  dB1 <- (p1 * N1 - (a + mB1)*B1)*dt
+  dN1 <- (E*(u1*F1*f1ton1)-mN1*N1)*dt
+  dB2 <- (p2 * N2 - (a + mB2)*B2)*dt
+  dN2 <- (E*(u1*F1*f1ton2)-mN2*N2)*dt
+  dF1 <- ((a*B1*(1-l)+l*a*B1)*epsilon+(a*B2*(1-l)+l*a*B2)*epsilon-mF1*F1)*dt
+  
+f1ton1.new <- s11*(a*B1*(1-l)+l*a*B1)/(s11*(a*B1*(1-l)+l*a*B1)+s12*(a*B2*(1-l)+l*a*B2))
+f1ton2.new <- s12*(a*B2*(1-l)+l*a*B2)/(s11*(a*B1*(1-l)+l*a*B1)+s12*(a*B2*(1-l)+l*a*B2))
+
+b1.set[i] <- B1 + dB1;n1.set[i] <- N1 + dN1;f1.set[i] <- F1 + dF1
+b2.set[i] <- B2 + dB2;n2.set[i] <- N2 + dN2;e.set[i] <- E - (dN1)
+  
+f1n1.set[i]<- f1ton1.new;f1n2.set[i]<- f1ton2.new
+}
+```
+
+```{r, echo = FALSE}
+sim.2t1f = tibble(time = tset) %>% 
+  mutate(b1 = b1.set)%>% 
+  mutate(b2 = b2.set)%>% 
+  mutate(n1 = n1.set)%>% 
+  mutate(n2 = n2.set) %>% 
+  mutate(f1 = f1.set)%>% 
+  mutate(e = e.set) %>%
+  mutate(f1n1 = f1n1.set)%>% 
+  mutate(f1n2 = f1n2.set)
+
+long.2t1f = sim.2t1f %>% 
+  select(time:f1) %>% 
+  pivot_longer(cols = b1:f1, names_to = "pool", values_to = 'size') %>% 
+  mutate(rep = str_sub(pool, 2,2)) %>% 
+  mutate(pool = str_sub(pool, 1,1)) %>%
+  group_by(pool, rep) %>% 
+ slice(which(row_number() %% 501 == 1)) %>% 
+  mutate(rep = case_when(
+    rep == "1" ~ "Host/Fungus 1",
+    rep == "2" ~ "Host/Fungus 2"
+  ))
+
+trade.2t1f = sim.2t1f %>% 
+  select(time, f1n1:f1n2) %>% 
+  pivot_longer(cols = f1n1:f1n2, names_to = "exchange", values_to = 'percent') %>% 
+  mutate(from.pool = str_sub(exchange, 1,1))%>% 
+  mutate(from.rep = str_sub(exchange, 2,2))%>% 
+  mutate(to.pool = str_sub(exchange, 3,3))%>% 
+  mutate(to.rep = str_sub(exchange, 4,4))%>%
+  group_by(from.pool, from.rep)   %>% 
+ slice(which(row_number() %% 501 == 1)) %>% 
+  mutate(primary = case_when(
+    from.rep == to.rep ~"primary",
+    from.rep != to.rep ~"alternate")) 
+
+
+plot.2t1f = 
+  ggplot(long.2t1f, aes(x = time, y = size, color = pool))+
+  geom_line(aes(linetype = rep), size = 1.5)+ 
+  facet_wrap(~rep)+
+  labs(x = "Time", y = "Pool Size")+
+  scale_color_manual(name = "", breaks = c("b", "n", "f"), labels = c("Host biomass", "Host nitrogen", "Fungal biomass"), values = c(b.color, n.color, f.color))+
+  theme_classic()+guides(linetype = "none")
+
+plot.2t1f
+
+ggtrade.2t1f = 
+  ggplot(trade.2t1f, aes(x = time, y = percent, color = primary))+
+  geom_line( size = 1, linetype = "solid")+ 
+  facet_grid(cols = vars(from.pool), rows = vars(from.rep))+
+  labs(x = "Time", y = "Percent allocation")+
+  theme_classic()+
+  lims(y = c(0,1))+
+  scale_color_manual(name = "", breaks = c("primary", "alternate"), labels = c("Preferred partner", "Alternate partner"), values = c(prim.color, alt.color))+
+  labs(title = "Percent of resources allocated to each host")
+
+ggtrade.2t1f
+
+
+```
+
+In the two trees one fungus system, I allow the fungus to just very slightly prefer one tree to the other (50.001% vs. 49.999%). This eventuality would result in total dominance by one host. If preference was even, the two trees would also be even.
+
+## One tree - two fungi
+
+```{r}
+primary.weight = 0.55 # how much preference each member of the network has for it's primary partner (e.g. Fungus 2's preference for Host 2)
+#parameter values
+tset = seq(from = 0, to = 5000, by = 0.01) # a timeseries to iterate over
+a <- 0.25 # host allocation to symbiont
+p1 <- .5 # host photosynthetic rate
+mB1 <- .15 # host mortality
+mN1 <- mB1 # host nitrogen loss rate
+r11 <- primary.weight # preference of host 1 for fungus 1
+r12 <- 1-r11 # preference of host 1 to fungus 2
+epsilon <- 0.15 # fungal conversion efficiency
+mF1 <- 0.1 # fungus 1 mortality rate
+mF2 <- mF1 # fungus 2 mortality rate
+u1 <- .25 # fungus 1 uptake rate
+u2 <- .25 # fungus 2 uptake rate
+N0 <- 100 # total system nitrogen
+l = 0.05 # percent of tree resources lost from ROI allocation
+
+#holding vectors and initial conditions
+b1.set = rep(NaN, length(tset)); b1.set[1] <- 65
+b2.set = rep(NaN, length(tset)); b2.set[1] <- 50
+n1.set = rep(NaN, length(tset)); n1.set[1] <- b1.set[1]*0.5
+n2.set = rep(NaN, length(tset)); n2.set[1] <- b2.set[1]*0.5
+f1.set = rep(NaN, length(tset)); f1.set[1] <- b1.set[1]*0.15
+f2.set = rep(NaN, length(tset)); f2.set[1] <- b2.set[1]*0.15
+e.set = rep(NaN, length(tset));  e.set[1]  <- 100 - n1.set[1]-n2.set[1]
+
+#historical sharing percentages based on relative size of each 
+c1f1.set = rep(NaN, length(tset)); c1f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c1f2.set = rep(NaN, length(tset)); c1f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+
+for(i in 2:length(tset)){
+  dt <- tset[i]-tset[i-1]
+  B1 <- b1.set[i-1];  N1 <- n1.set[i-1]; F1 <- f1.set[i-1]
+                                         F2 <- f2.set[i-1]; E <- e.set[i-1]
+  c1tof1 <- c1f1.set[i-1]; c1tof2 <- c1f2.set[i-1]
+
+  dB1 <- (p1 * N1 - (a + mB1)*B1)*dt
+  dN1 <- (E*(u1*F1+u2*F2)-mN1*N1)*dt
+  
+  dF1 <- ((a*B1*c1tof1*(1-l)+l*a*B1*r11)*epsilon-mF1*F1)*dt
+  dF2 <- ((a*B1*c1tof2*(1-l)+l*a*B1*r12)*epsilon-mF2*F2)*dt
+
+c1tof1.new <- r11*u1*F1/(r11*u1*F1+r12*u2*F2)
+c1tof2.new <- r12*u2*F2/(r11*u1*F1+r12*u2*F2)
+
+b1.set[i] <- B1 + dB1;n1.set[i] <- N1 + dN1;f1.set[i] <- F1 + dF1
+                                            f2.set[i] <- F2 + dF2;e.set[i] <- E - (dN1 + dN2)
+  
+c1f1.set[i]<- c1tof1.new;c1f2.set[i]<- c1tof2.new
+}
+```
+
+```{r, echo = FALSE}
+sim.1t2f = tibble(time = tset) %>% 
+  mutate(b1 = b1.set)%>% 
+  mutate(n1 = n1.set)%>% 
+  mutate(f1 = f1.set)%>% 
+  mutate(f2 = f2.set) %>%  
+  mutate(e = e.set) %>%
+  mutate(c1f1 = c1f1.set)%>% 
+  mutate(c1f2 = c1f2.set)
+
+long.1t2f = sim.1t2f %>% 
+  select(time:f2) %>% 
+  pivot_longer(cols = b1:f2, names_to = "pool", values_to = 'size') %>% 
+  mutate(rep = str_sub(pool, 2,2)) %>% 
+  mutate(pool = str_sub(pool, 1,1)) %>%
+  group_by(pool, rep) %>% 
+ slice(which(row_number() %% 501 == 1)) %>% 
+  mutate(rep = case_when(
+    rep == "1" ~ "Host/Fungus 1",
+    rep == "2" ~ "Host/Fungus 2"
+  ))
+
+trade.1t2f = sim.1t2f %>% 
+  select(time, c1f1:c1f2) %>% 
+  pivot_longer(cols = c1f1:c1f2, names_to = "exchange", values_to = 'percent') %>% 
+  mutate(from.pool = str_sub(exchange, 1,1))%>% 
+  mutate(from.rep = str_sub(exchange, 2,2))%>% 
+  mutate(to.pool = str_sub(exchange, 3,3))%>% 
+  mutate(to.rep = str_sub(exchange, 4,4))%>%
+  group_by(from.pool, from.rep)   %>% 
+ slice(which(row_number() %% 501 == 1)) %>% 
+  mutate(primary = case_when(
+    from.rep == to.rep ~"primary",
+    from.rep != to.rep ~"alternate"))
+
+
+plot.1t2f = 
+  ggplot(long.1t2f, aes(x = time, y = size, color = pool))+
+  geom_line(aes(linetype = rep), size = 1.5)+ 
+  facet_wrap(~rep)+
+  labs(x = "Time", y = "Pool Size")+
+  scale_color_manual(name = "", breaks = c("b", "n", "f"), labels = c("Host biomass", "Host nitrogen", "Fungal biomass"), values = c(b.color, n.color, f.color))+
+  theme_classic()+guides(linetype = "none")
+plot.1t2f
+
+ggtrade.1t2f = 
+  ggplot(trade.1t2f, aes(x = time, y = percent, color = primary))+
+  geom_line( size = 1, linetype = "solid")+ 
+  facet_grid(cols = vars(from.pool), rows = vars(from.rep))+
+  labs(x = "Time", y = "Percent allocation")+
+  theme_classic()+
+  lims(y = c(0,1))+
+  scale_color_manual(name = "", breaks = c("primary", "alternate"), labels = c("Preferred partner", "Alternate partner"), values = c(prim.color, alt.color))+
+  labs(title = "Percent of resources allocated to each fungus")
+
+ggtrade.1t2f
+
+```
+
+In the one tree two fungi system, I have shown the result of setting the preference for Fungus 1 to 55% but allowing the system to have imperfect (95%) judgement of ROI. This fact means that the tree will still provide some amount of its carbon to the worse partner, allowing that fungus to persist at a low level.
+
+## Two trees - two fungi
+
+```{r}
+
+
+
+
+primary.weight = 0.55 # how much preference each member of the network has for it's primary partner (e.g. Fungus 2's preference for Host 2)
+#parameter values
+tset = seq(from = 0, to = 5000, by = 0.01) # a timeseries to iterate over
+a <- 0.25 # host allocation to symbiont
+p1 <- .5 # host 1 photosynthetic rate
+p2 <- p1 # host 2 photosynthetic rate
+mB1 <- .15 # host 1 mortality
+mB2 <- .15 # host 2 mortality
+mN1 <- mB1 # host 1 nitrogen loss rate
+mN2 <- mB2 # host 2 nitrogen loss rate
+r11 <- primary.weight # preference of host 1 toward fungus 1
+r12 <- 1-r11 # preference of host 1 toward fungus 2
+r22 <- primary.weight # preference of host 2 toward fungus 2
+r21 <- 1-r22 # preference of host 2 toward fungus 1
+epsilon <- 0.15 # fungal conversion efficiency
+mF1 <- 0.1 # fungus 1 mortality rate
+mF2 <- mF1 # fungus 2 mortality rate
+u1 <- .25 # fungus 1 uptake rate
+u2 <- .25 # fungus 2 uptake rate
+s11 <- primary.weight # preference of fungus 1 toward host 1
+s12 <- 1-s11 # preference of fungus 1 toward host 2
+s22 <- primary.weight # preference of fungus 2 toward host 2
+s21 <- 1-s22 # preference of fungus 2 toward host 1
+N0 <- 100 # total system nitrogen
+l = 0.05 # percent of tree resources lost from ROI allocation
+
+
+#holding vectors and initial conditions
+b1.set = rep(NaN, length(tset)); b1.set[1] <- 65
+b2.set = rep(NaN, length(tset)); b2.set[1] <- 50
+n1.set = rep(NaN, length(tset)); n1.set[1] <- b1.set[1]*0.5
+n2.set = rep(NaN, length(tset)); n2.set[1] <- b2.set[1]*0.5
+f1.set = rep(NaN, length(tset)); f1.set[1] <- b1.set[1]*0.15
+f2.set = rep(NaN, length(tset)); f2.set[1] <- b2.set[1]*0.15
+e.set = rep(NaN, length(tset));  e.set[1]  <- 100 - n1.set[1]-n2.set[1]
+
+#historical sharing percentages based on relative size of each 
+c1f1.set = rep(NaN, length(tset)); c1f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c1f2.set = rep(NaN, length(tset)); c1f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+c2f1.set = rep(NaN, length(tset)); c2f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c2f2.set = rep(NaN, length(tset)); c2f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+f1n1.set = rep(NaN, length(tset)); f1n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f1n2.set = rep(NaN, length(tset)); f1n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+f2n1.set = rep(NaN, length(tset)); f2n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f2n2.set = rep(NaN, length(tset)); f2n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+
+
+for(i in 2:length(tset)){
+  dt <- tset[i]-tset[i-1]
+  B1 <- b1.set[i-1];  N1 <- n1.set[i-1]; F1 <- f1.set[i-1]
+  B2 <- b2.set[i-1];  N2 <- n2.set[i-1];F2 <- f2.set[i-1]; E <- e.set[i-1]
+  c1tof1 <- c1f1.set[i-1]; c1tof2 <- c1f2.set[i-1]; c2tof1 <- c2f1.set[i-1]; c2tof2 <- c2f2.set[i-1]
+  f1ton1 <- f1n1.set[i-1]; f1ton2 <- f1n2.set[i-1]; f2ton1 <- f2n1.set[i-1]; f2ton2 <- f2n2.set[i-1]
+
+  dB1 <- (p1 * N1 - (a + mB1)*B1)*dt
+  dN1 <- (E*(u1*F1*f1ton1+u2*F2*f2ton1)-mN1*N1)*dt
+  dB2 <- (p2 * N2 - (a + mB2)*B2)*dt
+  dN2 <- (E*(u1*F1*f1ton2+u2*F2*f2ton2)-mN2*N2)*dt
+  dF1 <- ((a*B1*c1tof1*(1-l)+l*a*B1*r11)*epsilon+(a*B2*c2tof1*(1-l)+l*a*B2*r21)*epsilon-mF1*F1)*dt
+  dF2 <- ((a*B1*c1tof2*(1-l)+l*a*B1*r12)*epsilon+(a*B2*c2tof2*(1-l)+l*a*B2*r22)*epsilon-mF2*F2)*dt
+
+c1tof1.new <- r11*u1*F1*s11*f1ton1/(r11*u1*F1*s11*f1ton1+r12*u2*F2*s21*f2ton1)
+c1tof2.new <- r12*u2*F2*s21*f2ton1/(r11*u1*F1*s11*f1ton1+r12*u2*F2*s21*f2ton1)
+c2tof1.new <- r21*u1*F1*s12*f1ton2/(r21*u1*F1*s12*f1ton2+r22*u2*F2*s22*f2ton2)
+c2tof2.new <- r22*u2*F2*s22*f2ton2/(r21*u1*F1*s12*f1ton2+r22*u2*F2*s22*f2ton2)
+f1ton1.new <- s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)/(s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)+s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21))
+f1ton2.new <- s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21)/(s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)+s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21))
+f2ton1.new <- s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)/(s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)+s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22))
+f2ton2.new <- s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22)/(s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)+s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22))
+  
+b1.set[i] <- B1 + dB1;n1.set[i] <- N1 + dN1;f1.set[i] <- F1 + dF1
+b2.set[i] <- B2 + dB2;n2.set[i] <- N2 + dN2;f2.set[i] <- F2 + dF2;e.set[i] <- E - (dN1 + dN2)
+  
+c1f1.set[i]<- c1tof1.new;c1f2.set[i]<- c1tof2.new;c2f1.set[i]<- c2tof1.new;c2f2.set[i]<- c2tof2.new
+f1n1.set[i]<- f1ton1.new;f1n2.set[i]<- f1ton2.new;f2n1.set[i]<- f2ton1.new;f2n2.set[i]<- f2ton2.new
+}
+```
+
+```{r, echo = FALSE}
+sim.2t2f = tibble(time = tset) %>% 
+  mutate(b1 = b1.set)%>% 
+  mutate(b2 = b2.set)%>% 
+  mutate(n1 = n1.set)%>% 
+  mutate(n2 = n2.set) %>% 
+  mutate(f1 = f1.set)%>% 
+  mutate(f2 = f2.set) %>%  
+  mutate(e = e.set) %>%
+  mutate(c1f1 = c1f1.set)%>% 
+  mutate(c1f2 = c1f2.set)%>% 
+  mutate(c2f1 = c2f1.set)%>% 
+  mutate(c2f2 = c2f2.set)%>% 
+  mutate(f1n1 = f1n1.set)%>% 
+  mutate(f1n2 = f1n2.set)%>% 
+  mutate(f2n1 = f2n1.set)%>% 
+  mutate(f2n2 = f2n2.set) 
+
+long.2t2f = sim.2t2f %>% 
+  select(time:f2) %>% 
+  pivot_longer(cols = b1:f2, names_to = "pool", values_to = 'size') %>% 
+  mutate(rep = str_sub(pool, 2,2)) %>% 
+  mutate(pool = str_sub(pool, 1,1)) %>%
+  group_by(pool, rep) %>% 
+ slice(which(row_number() %% 501 == 1)) %>% 
+  mutate(rep = case_when(
+    rep == "1" ~ "Host/Fungus 1",
+    rep == "2" ~ "Host/Fungus 2"
+  ))
+
+trade.2t2f = sim.2t2f %>% 
+  select(time, c1f1:f2n2) %>% 
+  pivot_longer(cols = c1f1:f2n2, names_to = "exchange", values_to = 'percent') %>% 
+  mutate(from.pool = str_sub(exchange, 1,1))%>% 
+  mutate(from.rep = str_sub(exchange, 2,2))%>% 
+  mutate(to.pool = str_sub(exchange, 3,3))%>% 
+  mutate(to.rep = str_sub(exchange, 4,4))%>%
+  group_by(from.pool, from.rep)   %>% 
+ slice(which(row_number() %% 501 == 1)) %>% 
+  mutate(primary = case_when(
+    from.rep == to.rep ~"primary",
+    from.rep != to.rep ~"alternate")) 
+
+
+plot.2t2f = 
+  ggplot(long.2t2f, aes(x = time, y = size, color = pool))+
+  geom_line(aes(linetype = rep), size = 1.5)+ 
+  facet_wrap(~rep)+
+  labs(x = "Time", y = "Pool Size")+
+  scale_color_manual(name = "", breaks = c("b", "n", "f"), labels = c("Host biomass", "Host nitrogen", "Fungal biomass"), values = c(b.color, n.color, f.color))+
+  theme_classic()+guides(linetype = "none")#+transition_reveal(time)
+
+# animate(plot.2t2f, duration = 5, renderer = gifski_renderer(loop = FALSE), 
+#         height = 5, width = 7, units = "in", res = 300)
+# anim_save(here("esa", "plot2t2f.gif"))
+
+plot.2t2f
+
+ggtrade.2t2f = 
+  ggplot(trade.2t2f, aes(x = time, y = percent, color = primary))+
+  geom_line( size = 1, linetype = "solid")+ 
+  facet_grid(cols = vars(from.pool), rows = vars(from.rep))+
+  labs(x = "Time", y = "Percent allocation")+
+  theme_classic()+
+  lims(y = c(0,1))+
+  scale_color_manual(name = "", breaks = c("primary", "alternate"), labels = c("Preferred partner", "Alternate partner"), values = c(prim.color, alt.color))+
+  labs(title = "Percent of resources allocated to each host or fungus")#+transition_reveal(time)
+#animate(ggtrade.2t2f, duration = 5, renderer = gifski_renderer(loop = FALSE),height = 5, width = 7, units = "in", res = 300)
+ggtrade.2t2f
+#anim_save(here("esa", "trade2t2f.gif"))
+
+
+```
+
+Now, I have set up the whole system. We see that the system can be stable in any configuration and number of players given a balanced playing field. When fungi have preferences for one host, they may drive the other host to 0, but when hosts have a preference for one fungus, its persistence is a function of the failure of the system to be perfectly adherent to the direction of ROI (by use of parameter 'l').
+
+## Different starting point
+
+```{r}
+primary.weight = .75
+#parameter values
+tset = seq(from = 0, to = 5000, by = 0.01)
+a <- 0.25
+p1 <- .5
+p2 <- p1
+mB1 <- .15
+mB2 <- .15
+mN1 <- mB1
+mN2 <- mB2
+r11 <- primary.weight
+r12 <- 1-r11
+r22 <- primary.weight
+r21 <- 1-r22
+epsilon <- 0.15
+mF1 <- 0.1
+mF2 <- mF1
+u1 <- .25
+u2 <- .25
+s11 <- primary.weight
+s12 <- 1-s11
+s22 <- primary.weight
+s21 <- 1-s22
+N0 <- 100
+l = 0.05
+
+#holding vectors and initial conditions
+b1.set = rep(NaN, length(tset)); b1.set[1] <- 65
+b2.set = rep(NaN, length(tset)); b2.set[1] <- 50
+n1.set = rep(NaN, length(tset)); n1.set[1] <- b1.set[1]*0.5
+n2.set = rep(NaN, length(tset)); n2.set[1] <- b2.set[1]*0.5
+f1.set = rep(NaN, length(tset)); f1.set[1] <- b1.set[1]*0.15
+f2.set = rep(NaN, length(tset)); f2.set[1] <- b2.set[1]*0.15
+e.set = rep(NaN, length(tset));  e.set[1]  <- 100 - n1.set[1]-n2.set[1]
+
+#historical sharing percentages based on relative size of each 
+c1f1.set = rep(NaN, length(tset)); c1f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c1f2.set = rep(NaN, length(tset)); c1f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+c2f1.set = rep(NaN, length(tset)); c2f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c2f2.set = rep(NaN, length(tset)); c2f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+f1n1.set = rep(NaN, length(tset)); f1n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f1n2.set = rep(NaN, length(tset)); f1n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+f2n1.set = rep(NaN, length(tset)); f2n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f2n2.set = rep(NaN, length(tset)); f2n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+
+
+for(i in 2:length(tset)){
+  dt <- tset[i]-tset[i-1]
+  B1 <- b1.set[i-1];  N1 <- n1.set[i-1]; F1 <- f1.set[i-1]
+  B2 <- b2.set[i-1];  N2 <- n2.set[i-1];F2 <- f2.set[i-1]; E <- e.set[i-1]
+  c1tof1 <- c1f1.set[i-1]; c1tof2 <- c1f2.set[i-1]; c2tof1 <- c2f1.set[i-1]; c2tof2 <- c2f2.set[i-1]
+  f1ton1 <- f1n1.set[i-1]; f1ton2 <- f1n2.set[i-1]; f2ton1 <- f2n1.set[i-1]; f2ton2 <- f2n2.set[i-1]
+
+  dB1 <- (p1 * N1 - (a + mB1)*B1)*dt
+  dN1 <- (E*(u1*F1*f1ton1+u2*F2*f2ton1)-mN1*N1)*dt
+  dB2 <- (p2 * N2 - (a + mB2)*B2)*dt
+  dN2 <- (E*(u1*F1*f1ton2+u2*F2*f2ton2)-mN2*N2)*dt
+  dF1 <- ((a*B1*c1tof1*(1-l)+l*a*B1*r11)*epsilon+(a*B2*c2tof1*(1-l)+l*a*B2*r21)*epsilon-mF1*F1)*dt
+  dF2 <- ((a*B1*c1tof2*(1-l)+l*a*B1*r12)*epsilon+(a*B2*c2tof2*(1-l)+l*a*B2*r22)*epsilon-mF2*F2)*dt
+
+c1tof1.new <- r11*u1*F1*s11*f1ton1/(r11*u1*F1*s11*f1ton1+r12*u2*F2*s21*f2ton1)
+c1tof2.new <- r12*u2*F2*s21*f2ton1/(r11*u1*F1*s11*f1ton1+r12*u2*F2*s21*f2ton1)
+c2tof1.new <- r21*u1*F1*s12*f1ton2/(r21*u1*F1*s12*f1ton2+r22*u2*F2*s22*f2ton2)
+c2tof2.new <- r22*u2*F2*s22*f2ton2/(r21*u1*F1*s12*f1ton2+r22*u2*F2*s22*f2ton2)
+f1ton1.new <- s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)/(s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)+s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21))
+f1ton2.new <- s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21)/(s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)+s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21))
+f2ton1.new <- s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)/(s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)+s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22))
+f2ton2.new <- s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22)/(s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)+s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22))
+  
+b1.set[i] <- B1 + dB1;n1.set[i] <- N1 + dN1;f1.set[i] <- F1 + dF1
+b2.set[i] <- B2 + dB2;n2.set[i] <- N2 + dN2;f2.set[i] <- F2 + dF2;e.set[i] <- E - (dN1 + dN2)
+  
+c1f1.set[i]<- c1tof1.new;c1f2.set[i]<- c1tof2.new;c2f1.set[i]<- c2tof1.new;c2f2.set[i]<- c2tof2.new
+f1n1.set[i]<- f1ton1.new;f1n2.set[i]<- f1ton2.new;f2n1.set[i]<- f2ton1.new;f2n2.set[i]<- f2ton2.new
+}
+```
+
+```{r, echo = FALSE}
+sim.alt = tibble(time = tset) %>% 
+  mutate(b1 = b1.set)%>% 
+  mutate(b2 = b2.set)%>% 
+  mutate(n1 = n1.set)%>% 
+  mutate(n2 = n2.set) %>% 
+  mutate(f1 = f1.set)%>% 
+  mutate(f2 = f2.set) %>%  
+  mutate(e = e.set) %>%
+  mutate(c1f1 = c1f1.set)%>% 
+  mutate(c1f2 = c1f2.set)%>% 
+  mutate(c2f1 = c2f1.set)%>% 
+  mutate(c2f2 = c2f2.set)%>% 
+  mutate(f1n1 = f1n1.set)%>% 
+  mutate(f1n2 = f1n2.set)%>% 
+  mutate(f2n1 = f2n1.set)%>% 
+  mutate(f2n2 = f2n2.set) 
+
+long.alt = sim.alt %>% 
+  select(time:f2) %>% 
+  pivot_longer(cols = b1:f2, names_to = "pool", values_to = 'size') %>% 
+  mutate(rep = str_sub(pool, 2,2)) %>% 
+  mutate(pool = str_sub(pool, 1,1)) %>%
+  group_by(pool, rep) %>% 
+ slice(which(row_number() %% 501 == 1)) %>% 
+  mutate(rep = case_when(
+    rep == "1" ~ "Host/Fungus 1",
+    rep == "2" ~ "Host/Fungus 2"
+  ))
+
+trade.alt = sim.alt %>% 
+  select(time, c1f1:f2n2) %>% 
+  pivot_longer(cols = c1f1:f2n2, names_to = "exchange", values_to = 'percent') %>% 
+  mutate(from.pool = str_sub(exchange, 1,1))%>% 
+  mutate(from.rep = str_sub(exchange, 2,2))%>% 
+  mutate(to.pool = str_sub(exchange, 3,3))%>% 
+  mutate(to.rep = str_sub(exchange, 4,4))%>%
+  group_by(from.pool, from.rep)   %>% 
+ slice(which(row_number() %% 501 == 1)) %>% 
+  mutate(primary = case_when(
+    from.rep == to.rep ~"primary",
+    from.rep != to.rep ~"alternate")) 
+
+
+plot.alt = 
+  ggplot(long.alt, aes(x = time, y = size, color = pool))+
+  geom_line(aes(linetype = rep), size = 1.5)+ 
+  facet_wrap(~rep)+
+  labs(x = "Time", y = "Pool Size")+
+  scale_color_manual(name = "", breaks = c("b", "n", "f"), labels = c("Host biomass", "Host nitrogen", "Fungal biomass"), values = c(b.color, n.color, f.color))+
+  theme_classic()+guides(linetype = "none")#+transition_reveal(time)
+
+# animate(plot.2t2f, duration = 5, renderer = gifski_renderer(loop = FALSE), 
+#         height = 5, width = 7, units = "in", res = 300)
+# anim_save(here("esa", "plot2t2f.gif"))
+
+plot.alt
+
+ggtrade.alt = 
+  ggplot(trade.alt, aes(x = time, y = percent, color = primary))+
+  geom_line( size = 1, linetype = "solid")+ 
+  facet_grid(cols = vars(from.pool), rows = vars(from.rep))+
+  labs(x = "Time", y = "Percent allocation")+
+  theme_classic()+
+  lims(y = c(0,1))+
+  scale_color_manual(name = "", breaks = c("primary", "alternate"), labels = c("Preferred partner", "Alternate partner"), values = c(prim.color, alt.color))#+transition_reveal(time)
+#animate(ggtrade.2t2f, duration = 5, renderer = gifski_renderer(loop = FALSE),height = 5, width = 7, units = "in", res = 300)
+ggtrade.alt
+#anim_save(here("esa", "trade2t2f.gif"))
+
+```
+
+Here we see that even from different starting points, the two host-partner pairs in the system can equillibrate to the same size. Notably, if either partner preference of ROI efficacy is set to 100%, the system will equillibrate, but the ratio of the two host-partner pairs will be driven by their initial conditions.
+
+### Can I build a system with two hosts with different traits?
+
+```{r}
+primary.weight = .75
+#parameter values
+tset = seq(from = 0, to = 10000, by = 0.1)
+a1 <- 0.25
+a2 <- 0.25
+p1 <- .55 #######Live fast#######
+p2 <- .5
+mB1 <- .166 #######Die young#######
+mB2 <- .15
+mN1 <- .15
+mN2 <- .15
+r11 <- primary.weight
+r12 <- 1-r11
+r22 <- primary.weight
+r21 <- 1-r22
+epsilon <- 0.15
+mF1 <- 0.1
+mF2 <- mF1
+u1 <- .25
+u2 <- .25
+s11 <- primary.weight
+s12 <- 1-s11
+s22 <- primary.weight
+s21 <- 1-s22
+N0 <- 100
+l = 0.75
+
+#holding vectors and initial conditions
+b1.set = rep(NaN, length(tset)); b1.set[1] <- 50
+b2.set = rep(NaN, length(tset)); b2.set[1] <- 50
+n1.set = rep(NaN, length(tset)); n1.set[1] <- b1.set[1]*0.5
+n2.set = rep(NaN, length(tset)); n2.set[1] <- b2.set[1]*0.5
+f1.set = rep(NaN, length(tset)); f1.set[1] <- b1.set[1]*0.15
+f2.set = rep(NaN, length(tset)); f2.set[1] <- b2.set[1]*0.15
+e.set = rep(NaN, length(tset));  e.set[1]  <- 100 - n1.set[1]-n2.set[1]
+
+#historical sharing percentages based on relative size of each 
+c1f1.set = rep(NaN, length(tset)); c1f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c1f2.set = rep(NaN, length(tset)); c1f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+c2f1.set = rep(NaN, length(tset)); c2f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c2f2.set = rep(NaN, length(tset)); c2f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+f1n1.set = rep(NaN, length(tset)); f1n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f1n2.set = rep(NaN, length(tset)); f1n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+f2n1.set = rep(NaN, length(tset)); f2n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f2n2.set = rep(NaN, length(tset)); f2n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+
+
+for(i in 2:length(tset)){
+  dt <- tset[i]-tset[i-1]
+  B1 <- b1.set[i-1];  N1 <- n1.set[i-1]; F1 <- f1.set[i-1]
+  B2 <- b2.set[i-1];  N2 <- n2.set[i-1];F2 <- f2.set[i-1]; E <- e.set[i-1]
+  c1tof1 <- c1f1.set[i-1]; c1tof2 <- c1f2.set[i-1]; c2tof1 <- c2f1.set[i-1]; c2tof2 <- c2f2.set[i-1]
+  f1ton1 <- f1n1.set[i-1]; f1ton2 <- f1n2.set[i-1]; f2ton1 <- f2n1.set[i-1]; f2ton2 <- f2n2.set[i-1]
+
+  dB1 <- (p1 * N1 - (a1 + mB1)*B1)*dt
+  dN1 <- (E*(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)-mN1*N1)*dt
+  dB2 <- (p2 * N2 - (a2 + mB2)*B2)*dt
+  dN2 <- (E*(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)-mN2*N2)*dt
+  dF1 <- ((a1*B1*c1tof1*(1-l)+l*a1*B1*r11)*epsilon+(a2*B2*c2tof1*(1-l)+l*a2*B2*r21)*epsilon-mF1*F1)*dt
+  dF2 <- ((a1*B1*c1tof2*(1-l)+l*a1*B1*r12)*epsilon+(a2*B2*c2tof2*(1-l)+l*a2*B2*r22)*epsilon-mF2*F2)*dt
+
+c1tof1.new <- (u1*F1*f1ton1*(1-l)+u1*F1*s11*l)/(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)
+c1tof2.new <- (u2*F2*f2ton1*(1-l)+u2*F2*s21*l)/(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)
+c2tof1.new <- (u1*F1*f1ton2*(1-l)+u1*F1*s12*l)/(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)
+c2tof2.new <- (u2*F2*f2ton2*(1-l)+u2*F2*s22*l)/(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)
+f1ton1.new <- s11*(a1*B1*c1tof1*(1-l)+l*a1*B1*r11)/(s11*(a1*B1*c1tof1*(1-l)+l*a1*B1*r11)+s12*(a2*B2*c2tof1*(1-l)+l*a2*B2*r21))
+f1ton2.new <- s12*(a2*B2*c2tof1*(1-l)+l*a2*B2*r21)/(s11*(a1*B1*c1tof1*(1-l)+l*a1*B1*r11)+s12*(a2*B2*c2tof1*(1-l)+l*a2*B2*r21))
+f2ton1.new <- s21*(a1*B1*c1tof2*(1-l)+l*a1*B1*r12)/(s21*(a1*B1*c1tof2*(1-l)+l*a1*B1*r12)+s22*(a2*B2*c2tof2*(1-l)+l*a2*B2*r22))
+f2ton2.new <- s22*(a2*B2*c2tof2*(1-l)+l*a2*B2*r22)/(s21*(a1*B1*c1tof2*(1-l)+l*a1*B1*r12)+s22*(a2*B2*c2tof2*(1-l)+l*a2*B2*r22))
+  
+b1.set[i] <- B1 + dB1;n1.set[i] <- N1 + dN1;f1.set[i] <- F1 + dF1
+b2.set[i] <- B2 + dB2;n2.set[i] <- N2 + dN2;f2.set[i] <- F2 + dF2;e.set[i] <- E - (dN1 + dN2)
+  
+c1f1.set[i]<- c1tof1.new;c1f2.set[i]<- c1tof2.new;c2f1.set[i]<- c2tof1.new;c2f2.set[i]<- c2tof2.new
+f1n1.set[i]<- f1ton1.new;f1n2.set[i]<- f1ton2.new;f2n1.set[i]<- f2ton1.new;f2n2.set[i]<- f2ton2.new
+}
+```
+
+```{r, echo = FALSE}
+sim.trait = tibble(time = tset) %>% 
+  mutate(b1 = b1.set)%>% 
+  mutate(b2 = b2.set)%>% 
+  mutate(n1 = n1.set)%>% 
+  mutate(n2 = n2.set) %>% 
+  mutate(f1 = f1.set)%>% 
+  mutate(f2 = f2.set) %>%  
+  mutate(e = e.set) %>%
+  mutate(c1f1 = c1f1.set)%>% 
+  mutate(c1f2 = c1f2.set)%>% 
+  mutate(c2f1 = c2f1.set)%>% 
+  mutate(c2f2 = c2f2.set)%>% 
+  mutate(f1n1 = f1n1.set)%>% 
+  mutate(f1n2 = f1n2.set)%>% 
+  mutate(f2n1 = f2n1.set)%>% 
+  mutate(f2n2 = f2n2.set) 
+
+long.trait = sim.trait %>% 
+  select(time:f2) %>% 
+  pivot_longer(cols = b1:f2, names_to = "pool", values_to = 'size') %>% 
+  mutate(rep = str_sub(pool, 2,2)) %>% 
+  mutate(pool = str_sub(pool, 1,1)) %>%
+  group_by(pool, rep) %>% 
+ slice(which(row_number() %% 501 == 1)) %>% 
+  mutate(rep = case_when(
+    rep == "1" ~ "Host/Fungus 1",
+    rep == "2" ~ "Host/Fungus 2"
+  ))
+
+trade.trait = sim.trait %>% 
+  select(time, c1f1:f2n2) %>% 
+  pivot_longer(cols = c1f1:f2n2, names_to = "exchange", values_to = 'percent') %>% 
+  mutate(from.pool = str_sub(exchange, 1,1))%>% 
+  mutate(from.rep = str_sub(exchange, 2,2))%>% 
+  mutate(to.pool = str_sub(exchange, 3,3))%>% 
+  mutate(to.rep = str_sub(exchange, 4,4))%>%
+  group_by(from.pool, from.rep)   %>% 
+ slice(which(row_number() %% 501 == 1)) %>% 
+  mutate(primary = case_when(
+    from.rep == to.rep ~"primary",
+    from.rep != to.rep ~"alternate")) 
+
+
+plot.trait = 
+  ggplot(long.trait, aes(x = time, y = size, color = pool))+
+  geom_line(aes(linetype = rep), size = 1.5)+ 
+  facet_wrap(~rep)+
+  labs(x = "Time", y = "Pool Size")+
+  scale_color_manual(name = "", breaks = c("b", "n", "f"), labels = c("Host biomass", "Host nitrogen", "Fungal biomass"), values = c(b.color, n.color, f.color))+
+  theme_classic()+guides(linetype = "none")
+
+plot.trait
+
+ggtrade.trait = 
+  ggplot(trade.trait, aes(x = time, y = percent, color = primary))+
+  geom_line( size = 1, linetype = "solid")+ 
+  facet_grid(cols = vars(from.pool), rows = vars(from.rep))+
+  labs(x = "Time", y = "Percent allocation")+
+  theme_classic()+
+  lims(y = c(0,1))+
+  scale_color_manual(name = "", breaks = c("primary", "alternate"), labels = c("Preferred partner", "Alternate partner"), values = c(prim.color, alt.color))
+
+ggtrade.trait
+```
+
+The stability of alternate hosts with different physiological strategies **also** depends on the ROI/Preference of the hosts. 
+
+```{r}
+steps = 10
+part.increments = seq(0.5, 1, length.out = steps)
+roi.increments = seq(0, 1, length.out = steps)
+
+
+samset = tibble(
+  partner.pref = part.increments, 
+  roi.pref = roi.increments
+)
+samsetlong = samset %>% 
+  expand.grid()
+p.pref = as.vector(samsetlong$partner.pref)
+r.pref = as.vector(samsetlong$roi.pref)
+
+b1.pref = rep(NaN, length(p.pref))
+b2.pref = rep(NaN, length(p.pref))
+f1.pref = rep(NaN, length(p.pref))
+f2.pref = rep(NaN, length(p.pref))
+
+
+for(j in 1:length(p.pref)){
+
+primary.weight = p.pref[j]
+#parameter values
+tset = seq(from = 0, to = 5000, by = 0.05)
+a <- 0.25
+p1 <- .55
+p2 <- .5
+mB1 <- .166
+mB2 <- .15
+mN1 <- mB1
+mN2 <- mB2
+r11 <- primary.weight
+r12 <- 1-r11
+r22 <- primary.weight
+r21 <- 1-r22
+epsilon <- 0.15
+mF1 <- 0.1
+mF2 <- mF1
+u1 <- .25
+u2 <- .25
+s11 <- primary.weight
+s12 <- 1-s11
+s22 <- primary.weight
+s21 <- 1-s22
+N0 <- 100
+l = r.pref[j]
+
+#holding vectors and initial conditions
+b1.set = rep(NaN, length(tset)); b1.set[1] <- 60
+b2.set = rep(NaN, length(tset)); b2.set[1] <- 60
+n1.set = rep(NaN, length(tset)); n1.set[1] <- b1.set[1]*0.5
+n2.set = rep(NaN, length(tset)); n2.set[1] <- b2.set[1]*0.5
+f1.set = rep(NaN, length(tset)); f1.set[1] <- b1.set[1]*0.15
+f2.set = rep(NaN, length(tset)); f2.set[1] <- b2.set[1]*0.15
+e.set = rep(NaN, length(tset));  e.set[1]  <- 100 - n1.set[1]-n2.set[1]
+
+#historical sharing percentages based on relative size of each 
+c1f1.set = rep(NaN, length(tset)); c1f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c1f2.set = rep(NaN, length(tset)); c1f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+c2f1.set = rep(NaN, length(tset)); c2f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c2f2.set = rep(NaN, length(tset)); c2f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+f1n1.set = rep(NaN, length(tset)); f1n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f1n2.set = rep(NaN, length(tset)); f1n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+f2n1.set = rep(NaN, length(tset)); f2n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f2n2.set = rep(NaN, length(tset)); f2n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+
+
+for(i in 2:length(tset)){
+  dt <- tset[i]-tset[i-1]
+  B1 <- b1.set[i-1];  N1 <- n1.set[i-1]; F1 <- f1.set[i-1]
+  B2 <- b2.set[i-1];  N2 <- n2.set[i-1];F2 <- f2.set[i-1]; E <- e.set[i-1]
+  c1tof1 <- c1f1.set[i-1]; c1tof2 <- c1f2.set[i-1]; c2tof1 <- c2f1.set[i-1]; c2tof2 <- c2f2.set[i-1]
+  f1ton1 <- f1n1.set[i-1]; f1ton2 <- f1n2.set[i-1]; f2ton1 <- f2n1.set[i-1]; f2ton2 <- f2n2.set[i-1]
+
+  dB1 <- (p1 * N1 - (a + mB1)*B1)*dt
+  dN1 <- (E*(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)-mN1*N1)*dt
+  dB2 <- (p2 * N2 - (a + mB2)*B2)*dt
+  dN2 <- (E*(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)-mN2*N2)*dt
+  dF1 <- ((a*B1*c1tof1*(1-l)+l*a*B1*r11)*epsilon+(a*B2*c2tof1*(1-l)+l*a*B2*r21)*epsilon-mF1*F1)*dt
+  dF2 <- ((a*B1*c1tof2*(1-l)+l*a*B1*r12)*epsilon+(a*B2*c2tof2*(1-l)+l*a*B2*r22)*epsilon-mF2*F2)*dt
+
+c1tof1.new <- (u1*F1*f1ton1*(1-l)+u1*F1*s11*l)/(u1*F1*f1ton1*(1-l)+u1*F1*s11*l+u2*F2*f2ton1*(1-l)+u2*F2*s21*l)
+c1tof2.new <- (u2*F2*f2ton1*(1-l)+u2*F2*s21*l)/(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)
+c2tof1.new <- (u1*F1*f1ton2*(1-l)+u1*F1*s12*l)/(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)
+c2tof2.new <- (u2*F2*f2ton2*(1-l)+u2*F2*s22*l)/(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)
+f1ton1.new <- s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)/(s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)+s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21))
+f1ton2.new <- s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21)/(s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)+s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21))
+f2ton1.new <- s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)/(s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)+s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22))
+f2ton2.new <- s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22)/(s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)+s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22))
+  
+b1.set[i] <- B1 + dB1;n1.set[i] <- N1 + dN1;f1.set[i] <- F1 + dF1
+b2.set[i] <- B2 + dB2;n2.set[i] <- N2 + dN2;f2.set[i] <- F2 + dF2;e.set[i] <- E - (dN1 + dN2)
+  
+c1f1.set[i]<- c1tof1.new;c1f2.set[i]<- c1tof2.new;c2f1.set[i]<- c2tof1.new;c2f2.set[i]<- c2tof2.new
+f1n1.set[i]<- f1ton1.new;f1n2.set[i]<- f1ton2.new;f2n1.set[i]<- f2ton1.new;f2n2.set[i]<- f2ton2.new
+}
+b1.pref[j] = b1.set[length(b1.set)]
+b2.pref[j] = b2.set[length(b2.set)]
+f1.pref[j] = f1.set[length(f1.set)]
+f2.pref[j] = f2.set[length(f2.set)]
+
+}
+```
+```{r}
+phys.df = samsetlong  %>% 
+  rename(partner.preference = partner.pref) %>% 
+  rename(ROI.strength = roi.pref) %>% 
+  mutate(ROI.strength = 1-ROI.strength)%>% 
+  mutate(b1 = b1.pref)%>% 
+  mutate(b2 = b2.pref)%>% 
+  mutate(f1 = f1.pref)%>% 
+  mutate(f2 = f2.pref) %>% 
+  mutate(log.host.ratio = log.max(b1/b2))%>% 
+  mutate(log.sym.ratio = log.max(f1/f2))
+
+gg.phys.b = ggplot(phys.df, aes(x = partner.preference, y = ROI.strength, fill = log.host.ratio))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "Log(Host 1<br>/Host 2)")
+ggplotly(gg.phys.b)
+
+gg.phys.f = ggplot(phys.df, aes(x = partner.preference, y = ROI.strength, fill = log.sym.ratio))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "Log(Fungus 1<br>/Fungus 2)")
+ggplotly(gg.phys.f)
+
+gg.phys.b1 = ggplot(phys.df, aes(x = partner.preference, y = ROI.strength, fill = b1))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "Host 1")
+ggplotly(gg.phys.b1)
+
+gg.phys.b2 = ggplot(phys.df, aes(x = partner.preference, y = ROI.strength, fill = b2))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "Host 2")
+ggplotly(gg.phys.b2)
+
+gg.phys.f1 = ggplot(phys.df, aes(x = partner.preference, y = ROI.strength, fill = f1))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "Fungus 1")
+ggplotly(gg.phys.f1)
+
+gg.phys.f2 = ggplot(phys.df, aes(x = partner.preference, y = ROI.strength, fill = f2))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "Fungus 2")
+ggplotly(gg.phys.f2)
+
+```
+
+When comparing two trees with different physiological adaptations (e.g. a live-fast-die-young tree versus a slow-and-steady tree), the ability of the trees to coexist and relative abundance are dictated by the preferential allocation rate and percent adherence to maximizing ROI.
+
+
+
+### Stability of an alternate physiology, but the winning strategy gets sick half way through the simulation. Climate change.
+```{r}
+steps = 10
+part.increments = seq(0.5, 1, length.out = steps)
+roi.increments = seq(0, 1, length.out = steps)
+
+
+samset = tibble(
+  partner.pref = part.increments, 
+  roi.pref = roi.increments
+)
+samsetlong = samset %>% 
+  expand.grid()
+p.pref = as.vector(samsetlong$partner.pref)
+r.pref = as.vector(samsetlong$roi.pref)
+
+b1.pref = rep(NaN, length(p.pref))
+b2.pref = rep(NaN, length(p.pref))
+f1.pref = rep(NaN, length(p.pref))
+f2.pref = rep(NaN, length(p.pref))
+
+
+for(j in 1:length(p.pref)){
+
+primary.weight = p.pref[j]
+#parameter values
+tset = seq(from = 0, to = 10000, by = 0.05)
+a <- 0.25
+p1 <- .55
+p2 <- .5
+mB1 <- .166
+mB2 <- .15
+mN1 <- mB1
+mN2 <- mB2
+r11 <- primary.weight
+r12 <- 1-r11
+r22 <- primary.weight
+r21 <- 1-r22
+epsilon <- 0.15
+mF1 <- 0.1
+mF2 <- mF1
+u1 <- .25
+u2 <- .25
+s11 <- primary.weight
+s12 <- 1-s11
+s22 <- primary.weight
+s21 <- 1-s22
+N0 <- 100
+l = r.pref[j]
+
+#holding vectors and initial conditions
+b1.set = rep(NaN, length(tset)); b1.set[1] <- 60
+b2.set = rep(NaN, length(tset)); b2.set[1] <- 60
+n1.set = rep(NaN, length(tset)); n1.set[1] <- b1.set[1]*0.5
+n2.set = rep(NaN, length(tset)); n2.set[1] <- b2.set[1]*0.5
+f1.set = rep(NaN, length(tset)); f1.set[1] <- b1.set[1]*0.15
+f2.set = rep(NaN, length(tset)); f2.set[1] <- b2.set[1]*0.15
+e.set = rep(NaN, length(tset));  e.set[1]  <- 100 - n1.set[1]-n2.set[1]
+
+#historical sharing percentages based on relative size of each 
+c1f1.set = rep(NaN, length(tset)); c1f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c1f2.set = rep(NaN, length(tset)); c1f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+c2f1.set = rep(NaN, length(tset)); c2f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c2f2.set = rep(NaN, length(tset)); c2f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+f1n1.set = rep(NaN, length(tset)); f1n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f1n2.set = rep(NaN, length(tset)); f1n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+f2n1.set = rep(NaN, length(tset)); f2n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f2n2.set = rep(NaN, length(tset)); f2n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+
+
+for(i in 2:length(tset)){
+  dt <- tset[i]-tset[i-1]
+  B1 <- b1.set[i-1];  N1 <- n1.set[i-1]; F1 <- f1.set[i-1]
+  B2 <- b2.set[i-1];  N2 <- n2.set[i-1];F2 <- f2.set[i-1]; E <- e.set[i-1]
+  c1tof1 <- c1f1.set[i-1]; c1tof2 <- c1f2.set[i-1]; c2tof1 <- c2f1.set[i-1]; c2tof2 <- c2f2.set[i-1]
+  f1ton1 <- f1n1.set[i-1]; f1ton2 <- f1n2.set[i-1]; f2ton1 <- f2n1.set[i-1]; f2ton2 <- f2n2.set[i-1]
+
+  dB1 <- (p1 * N1 - (a + mB1)*B1)*dt
+  dN1 <- (E*(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)-mN1*N1)*dt
+  dB2 <- (p2 * N2 - (a + mB2)*B2)*dt
+  dN2 <- (E*(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)-mN2*N2)*dt
+  dF1 <- ((a*B1*c1tof1*(1-l)+l*a*B1*r11)*epsilon+(a*B2*c2tof1*(1-l)+l*a*B2*r21)*epsilon-mF1*F1)*dt
+  dF2 <- ((a*B1*c1tof2*(1-l)+l*a*B1*r12)*epsilon+(a*B2*c2tof2*(1-l)+l*a*B2*r22)*epsilon-mF2*F2)*dt
+
+c1tof1.new <- (u1*F1*f1ton1*(1-l)+u1*F1*s11*l)/(u1*F1*f1ton1*(1-l)+u1*F1*s11*l+u2*F2*f2ton1*(1-l)+u2*F2*s21*l)
+c1tof2.new <- (u2*F2*f2ton1*(1-l)+u2*F2*s21*l)/(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)
+c2tof1.new <- (u1*F1*f1ton2*(1-l)+u1*F1*s12*l)/(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)
+c2tof2.new <- (u2*F2*f2ton2*(1-l)+u2*F2*s22*l)/(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)
+f1ton1.new <- s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)/(s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)+s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21))
+f1ton2.new <- s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21)/(s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)+s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21))
+f2ton1.new <- s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)/(s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)+s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22))
+f2ton2.new <- s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22)/(s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)+s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22))
+  
+b1.set[i] <- B1 + dB1;n1.set[i] <- N1 + dN1;f1.set[i] <- F1 + dF1
+b2.set[i] <- B2 + dB2;n2.set[i] <- N2 + dN2;f2.set[i] <- F2 + dF2;e.set[i] <- E - (dN1 + dN2)
+  
+c1f1.set[i]<- c1tof1.new;c1f2.set[i]<- c1tof2.new;c2f1.set[i]<- c2tof1.new;c2f2.set[i]<- c2tof2.new
+f1n1.set[i]<- f1ton1.new;f1n2.set[i]<- f1ton2.new;f2n1.set[i]<- f2ton1.new;f2n2.set[i]<- f2ton2.new
+
+if(i == round(0.5*length(tset), 0))
+{p2 <- 0.5*0.90 }
+}
+
+
+b1.pref[j] = b1.set[length(b1.set)]
+b2.pref[j] = b2.set[length(b2.set)]
+f1.pref[j] = f1.set[length(f1.set)]
+f2.pref[j] = f2.set[length(f2.set)]
+
+}
+```
+```{r, echo = FALSE}
+clim.df = samsetlong  %>% 
+  rename(partner.preference = partner.pref) %>% 
+  rename(ROI.strength = roi.pref) %>% 
+  mutate(ROI.strength = 1-ROI.strength)%>% 
+  mutate(b1 = b1.pref)%>% 
+  mutate(b2 = b2.pref)%>% 
+  mutate(f1 = f1.pref)%>% 
+  mutate(f2 = f2.pref)%>% 
+  mutate(log.host.ratio = log.max(b1/b2))%>% 
+  mutate(log.sym.ratio = log.max(f1/f2))
+
+gg.clim.b = ggplot(clim.df, aes(x = partner.preference, y = ROI.strength, fill = log.host.ratio))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "Log(Host 1<br>/Host 2)")+labs(title = "Different physiologies. B2 succumbs to climate change")
+ggplotly(gg.clim.b)
+
+gg.clim.f = ggplot(clim.df, aes(x = partner.preference, y = ROI.strength, fill = log.sym.ratio))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "Log(Fungus 1<br>/Fungus 2)")+labs(title = "Different physiologies. B2 succumbs to climate change")
+ggplotly(gg.clim.f)
+
+gg.clim.b1 = ggplot(clim.df, aes(x = partner.preference, y = ROI.strength, fill = b1))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "B1")+labs(title = "Different physiologies. B2 succumbs to climate change")
+ggplotly(gg.clim.b1)
+
+gg.clim.b2 = ggplot(clim.df, aes(x = partner.preference, y = ROI.strength, fill = b2))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "B2")+labs(title = "Different physiologies. B2 succumbs to climate change")
+ggplotly(gg.clim.b2)
+
+gg.clim.f1 = ggplot(clim.df, aes(x = partner.preference, y = ROI.strength, fill = f1))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "F1")+labs(title = "Different physiologies. B2 succumbs to climate change")
+ggplotly(gg.clim.f1)
+
+gg.clim.f2 = ggplot(clim.df, aes(x = partner.preference, y = ROI.strength, fill = f2))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "F2")+labs(title = "Different physiologies. B2 succumbs to climate change")
+ggplotly(gg.clim.f2)
+
+```
+If we take our differently adapted host trees, allow them to equillibrate, then exert a stress on one the previous winner, the winner from before entirely switches. 
+
+
+## Invasion (or something like that)
+Starting with one host at one 10,000th of the other and a biomass of 0.01, what is the equillibrium community?
+```{r}
+steps = 10
+part.increments = seq(0.5, .999, length.out = steps)
+roi.increments = seq(0, .999, length.out = steps)
+
+
+samset = tibble(
+  partner.pref = part.increments, 
+  roi.pref = roi.increments
+)
+samsetlong = samset %>% 
+  expand.grid()
+p.pref = as.vector(samsetlong$partner.pref)
+r.pref = as.vector(samsetlong$roi.pref)
+
+b1.pref = rep(NaN, length(p.pref))
+b2.pref = rep(NaN, length(p.pref))
+f1.pref = rep(NaN, length(p.pref))
+f2.pref = rep(NaN, length(p.pref))
+
+
+for(j in 1:length(p.pref)){
+
+primary.weight = p.pref[j]
+#parameter values
+tset = seq(from = 0, to = 50000, by = 0.05)
+a <- 0.25
+p1 <- .5
+p2 <- p1
+mB1 <- .15
+mB2 <- .15
+mN1 <- mB1
+mN2 <- mB2
+r11 <- primary.weight
+r12 <- 1-r11
+r22 <- primary.weight
+r21 <- 1-r22
+epsilon <- 0.15
+mF1 <- 0.1
+mF2 <- mF1
+u1 <- .25
+u2 <- .25
+s11 <- primary.weight
+s12 <- 1-s11
+s22 <- primary.weight
+s21 <- 1-s22
+N0 <- 100
+l = r.pref[j]
+
+#holding vectors and initial conditions
+b1.set = rep(NaN, length(tset)); b1.set[1] <- 100
+b2.set = rep(NaN, length(tset)); b2.set[1] <- .01
+n1.set = rep(NaN, length(tset)); n1.set[1] <- b1.set[1]*0.5
+n2.set = rep(NaN, length(tset)); n2.set[1] <- b2.set[1]*0.5
+f1.set = rep(NaN, length(tset)); f1.set[1] <- b1.set[1]*0.15
+f2.set = rep(NaN, length(tset)); f2.set[1] <- b2.set[1]*0.15
+e.set = rep(NaN, length(tset));  e.set[1]  <- 100 - n1.set[1]-n2.set[1]
+
+#historical sharing percentages based on relative size of each 
+c1f1.set = rep(NaN, length(tset)); c1f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c1f2.set = rep(NaN, length(tset)); c1f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+c2f1.set = rep(NaN, length(tset)); c2f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c2f2.set = rep(NaN, length(tset)); c2f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+f1n1.set = rep(NaN, length(tset)); f1n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f1n2.set = rep(NaN, length(tset)); f1n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+f2n1.set = rep(NaN, length(tset)); f2n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f2n2.set = rep(NaN, length(tset)); f2n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+
+
+for(i in 2:length(tset)){
+  dt <- tset[i]-tset[i-1]
+  B1 <- b1.set[i-1];  N1 <- n1.set[i-1]; F1 <- f1.set[i-1]
+  B2 <- b2.set[i-1];  N2 <- n2.set[i-1];F2 <- f2.set[i-1]; E <- e.set[i-1]
+  c1tof1 <- c1f1.set[i-1]; c1tof2 <- c1f2.set[i-1]; c2tof1 <- c2f1.set[i-1]; c2tof2 <- c2f2.set[i-1]
+  f1ton1 <- f1n1.set[i-1]; f1ton2 <- f1n2.set[i-1]; f2ton1 <- f2n1.set[i-1]; f2ton2 <- f2n2.set[i-1]
+
+  dB1 <- (p1 * N1 - (a + mB1)*B1)*dt
+  dN1 <- (E*(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)-mN1*N1)*dt
+  dB2 <- (p2 * N2 - (a + mB2)*B2)*dt
+  dN2 <- (E*(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)-mN2*N2)*dt
+  dF1 <- ((a*B1*c1tof1*(1-l)+l*a*B1*r11)*epsilon+(a*B2*c2tof1*(1-l)+l*a*B2*r21)*epsilon-mF1*F1)*dt
+  dF2 <- ((a*B1*c1tof2*(1-l)+l*a*B1*r12)*epsilon+(a*B2*c2tof2*(1-l)+l*a*B2*r22)*epsilon-mF2*F2)*dt
+
+c1tof1.new <- (u1*F1*f1ton1*(1-l)+u1*F1*s11*l)/(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)
+c1tof2.new <- (u2*F2*f2ton1*(1-l)+u2*F2*s21*l)/(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)
+c2tof1.new <- (u1*F1*f1ton2*(1-l)+u1*F1*s12*l)/(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)
+c2tof2.new <- (u2*F2*f2ton2*(1-l)+u2*F2*s22*l)/(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)
+f1ton1.new <- s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)/(s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)+s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21))
+f1ton2.new <- s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21)/(s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)+s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21))
+f2ton1.new <- s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)/(s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)+s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22))
+f2ton2.new <- s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22)/(s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)+s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22))
+  
+b1.set[i] <- B1 + dB1;n1.set[i] <- N1 + dN1;f1.set[i] <- F1 + dF1
+b2.set[i] <- B2 + dB2;n2.set[i] <- N2 + dN2;f2.set[i] <- F2 + dF2;e.set[i] <- E - (dN1 + dN2)
+  
+c1f1.set[i]<- c1tof1.new;c1f2.set[i]<- c1tof2.new;c2f1.set[i]<- c2tof1.new;c2f2.set[i]<- c2tof2.new
+f1n1.set[i]<- f1ton1.new;f1n2.set[i]<- f1ton2.new;f2n1.set[i]<- f2ton1.new;f2n2.set[i]<- f2ton2.new
+}
+b1.pref[j] = b1.set[length(b1.set)]
+b2.pref[j] = b2.set[length(b2.set)]
+f1.pref[j] = f1.set[length(f1.set)]
+f2.pref[j] = f2.set[length(f2.set)]
+
+}
+```
+```{r, echo = FALSE}
+invade.df = samsetlong  %>% 
+  rename(partner.preference = partner.pref) %>% 
+  rename(ROI.strength = roi.pref) %>% 
+  mutate(ROI.strength = 1-ROI.strength)%>% 
+  mutate(b1 = b1.pref)%>% 
+  mutate(b2 = b2.pref)%>% 
+  mutate(f1 = f1.pref)%>% 
+  mutate(f2 = f2.pref)%>% 
+  mutate(log.host.ratio = log.max(b1/b2))%>% 
+  mutate(log.sym.ratio = log.max(f1/f2))
+
+gg.invade.b = ggplot(invade.df, aes(x = partner.preference, y = ROI.strength, fill = log.host.ratio))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "Log(Host 1<br>/Host 2)")+
+  labs(title = "Invasion of B2 and F2 into B1 and F1")
+ggplotly(gg.invade.b)
+
+gg.invade.f = ggplot(invade.df, aes(x = partner.preference, y = ROI.strength, fill = log.sym.ratio))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "Log(Fungus 1<br>/Fungus 2)")+labs(title = "Invasion of B2 and F2 into B1 and F1")
+ggplotly(gg.invade.f)
+
+gg.invade.b1 = ggplot(invade.df, aes(x = partner.preference, y = ROI.strength, fill = b1))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "B1")+labs(title = "Invasion of B2 and F2 into B1 and F1")
+ggplotly(gg.invade.b1)
+
+gg.invade.b2 = ggplot(invade.df, aes(x = partner.preference, y = ROI.strength, fill = b2))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "B2")+labs(title = "Invasion of B2 and F2 into B1 and F1")
+ggplotly(gg.invade.b2)
+
+gg.invade.f1 = ggplot(invade.df, aes(x = partner.preference, y = ROI.strength, fill = f1))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "F1")+labs(title = "Invasion of B2 and F2 into B1 and F1")
+ggplotly(gg.invade.f1)
+
+gg.invade.f2 = ggplot(invade.df, aes(x = partner.preference, y = ROI.strength, fill = f2))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "F2")+labs(title = "Invasion of B2 and F2 into B1 and F1")
+ggplotly(gg.invade.f2)
+```
+Looking at my rough idea of invasion of a small population into the larger one, we see that when neither ROI or partner preference are at 100%, the invader and the resident reach the same biomass, as explained in the section earlier in this document. When wither ROI is maximized, the invader will not establish. When preference is maximized but ROI is not, the invader will persist below the biomass of the resident. 
+
+## Stressor - acute. 
+A single injury event to both host and symbiont halfway through the simulation. 
+```{r}
+steps = 10
+part.increments = seq(0.5, .999, length.out = steps)
+roi.increments = seq(0, .999, length.out = steps)
+
+
+samset = tibble(
+  partner.pref = part.increments, 
+  roi.pref = roi.increments
+)
+samsetlong = samset %>% 
+  expand.grid()
+p.pref = as.vector(samsetlong$partner.pref)
+r.pref = as.vector(samsetlong$roi.pref)
+
+b1.pref = rep(NaN, length(p.pref))
+b2.pref = rep(NaN, length(p.pref))
+f1.pref = rep(NaN, length(p.pref))
+f2.pref = rep(NaN, length(p.pref))
+
+
+for(j in 1:length(p.pref)){
+
+primary.weight = p.pref[j]
+#parameter values
+tset = seq(from = 0, to = 10000, by = 0.05)
+a <- 0.25
+p1 <- .5
+p2 <- p1
+mB1 <- .15
+mB2 <- .15
+mN1 <- mB1
+mN2 <- mB2
+r11 <- primary.weight
+r12 <- 1-r11
+r22 <- primary.weight
+r21 <- 1-r22
+epsilon <- 0.15
+mF1 <- 0.1
+mF2 <- mF1
+u1 <- .25
+u2 <- .25
+s11 <- primary.weight
+s12 <- 1-s11
+s22 <- primary.weight
+s21 <- 1-s22
+N0 <- 100
+l = r.pref[j]
+
+#holding vectors and initial conditions
+b1.set = rep(NaN, length(tset)); b1.set[1] <- 50
+b2.set = rep(NaN, length(tset)); b2.set[1] <- 50
+n1.set = rep(NaN, length(tset)); n1.set[1] <- b1.set[1]*0.5
+n2.set = rep(NaN, length(tset)); n2.set[1] <- b2.set[1]*0.5
+f1.set = rep(NaN, length(tset)); f1.set[1] <- b1.set[1]*0.15
+f2.set = rep(NaN, length(tset)); f2.set[1] <- b2.set[1]*0.15
+e.set = rep(NaN, length(tset));  e.set[1]  <- 100 - n1.set[1]-n2.set[1]
+
+#historical sharing percentages based on relative size of each 
+c1f1.set = rep(NaN, length(tset)); c1f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c1f2.set = rep(NaN, length(tset)); c1f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+c2f1.set = rep(NaN, length(tset)); c2f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c2f2.set = rep(NaN, length(tset)); c2f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+f1n1.set = rep(NaN, length(tset)); f1n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f1n2.set = rep(NaN, length(tset)); f1n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+f2n1.set = rep(NaN, length(tset)); f2n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f2n2.set = rep(NaN, length(tset)); f2n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+
+
+for(i in 2:length(tset)){
+  dt <- tset[i]-tset[i-1]
+  B1 <- b1.set[i-1];  N1 <- n1.set[i-1]; F1 <- f1.set[i-1]
+  B2 <- b2.set[i-1];  N2 <- n2.set[i-1];F2 <- f2.set[i-1]; E <- e.set[i-1]
+  c1tof1 <- c1f1.set[i-1]; c1tof2 <- c1f2.set[i-1]; c2tof1 <- c2f1.set[i-1]; c2tof2 <- c2f2.set[i-1]
+  f1ton1 <- f1n1.set[i-1]; f1ton2 <- f1n2.set[i-1]; f2ton1 <- f2n1.set[i-1]; f2ton2 <- f2n2.set[i-1]
+
+  dB1 <- (p1 * N1 - (a + mB1)*B1)*dt
+  dN1 <- (E*(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)-mN1*N1)*dt
+  dB2 <- (p2 * N2 - (a + mB2)*B2)*dt
+  dN2 <- (E*(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)-mN2*N2)*dt
+  dF1 <- ((a*B1*c1tof1*(1-l)+l*a*B1*r11)*epsilon+(a*B2*c2tof1*(1-l)+l*a*B2*r21)*epsilon-mF1*F1)*dt
+  dF2 <- ((a*B1*c1tof2*(1-l)+l*a*B1*r12)*epsilon+(a*B2*c2tof2*(1-l)+l*a*B2*r22)*epsilon-mF2*F2)*dt
+
+c1tof1.new <- (u1*F1*f1ton1*(1-l)+u1*F1*s11*l)/(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)
+c1tof2.new <- (u2*F2*f2ton1*(1-l)+u2*F2*s21*l)/(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)
+c2tof1.new <- (u1*F1*f1ton2*(1-l)+u1*F1*s12*l)/(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)
+c2tof2.new <- (u2*F2*f2ton2*(1-l)+u2*F2*s22*l)/(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)
+f1ton1.new <- s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)/(s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)+s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21))
+f1ton2.new <- s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21)/(s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)+s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21))
+f2ton1.new <- s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)/(s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)+s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22))
+f2ton2.new <- s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22)/(s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)+s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22))
+  
+if(i == round(0.5*length(tset), 0))
+{dB1 <- -0.5*B1
+ dN1 <- -0.5*N1
+ dF1 <- -0.5*F1}
+
+b1.set[i] <- B1 + dB1;n1.set[i] <- N1 + dN1;f1.set[i] <- F1 + dF1
+b2.set[i] <- B2 + dB2;n2.set[i] <- N2 + dN2;f2.set[i] <- F2 + dF2;e.set[i] <- E - (dN1 + dN2)
+  
+c1f1.set[i]<- c1tof1.new;c1f2.set[i]<- c1tof2.new;c2f1.set[i]<- c2tof1.new;c2f2.set[i]<- c2tof2.new
+f1n1.set[i]<- f1ton1.new;f1n2.set[i]<- f1ton2.new;f2n1.set[i]<- f2ton1.new;f2n2.set[i]<- f2ton2.new
+}
+b1.pref[j] = b1.set[length(b1.set)]
+b2.pref[j] = b2.set[length(b2.set)]
+f1.pref[j] = f1.set[length(f1.set)]
+f2.pref[j] = f2.set[length(f2.set)]
+
+}
+```
+```{r, echo = FALSE}
+acute.df = samsetlong  %>% 
+  rename(partner.preference = partner.pref) %>% 
+  rename(ROI.strength = roi.pref) %>% 
+  mutate(ROI.strength = 1-ROI.strength)%>% 
+  mutate(b1 = b1.pref)%>% 
+  mutate(b2 = b2.pref)%>% 
+  mutate(f1 = f1.pref)%>% 
+  mutate(f2 = f2.pref)%>% 
+  mutate(log.host.ratio = log.max(b1/b2))%>% 
+  mutate(log.sym.ratio = log.max(f1/f2))
+
+gg.acute.b = ggplot(acute.df, aes(x = partner.preference, y = ROI.strength, fill = log.host.ratio))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "Log(Host 1<br>/Host 2)")+
+  labs(title = "Result of an acute stress on host and symbiont 1")
+ggplotly(gg.acute.b)
+
+gg.acute.f = ggplot(acute.df, aes(x = partner.preference, y = ROI.strength, fill = log.sym.ratio))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "Log(Fungus 1<br>/Fungus 2)")+labs(title = "Result of an acute stress on host and symbiont 1")
+ggplotly(gg.acute.f)
+
+gg.acute.b1 = ggplot(acute.df, aes(x = partner.preference, y = ROI.strength, fill = b1))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "B1")+labs(title = "Result of an acute stress on host and symbiont 1")
+ggplotly(gg.acute.b1)
+
+gg.acute.b2 = ggplot(acute.df, aes(x = partner.preference, y = ROI.strength, fill = b2))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "B2")+labs(title = "Result of an acute stress on host and symbiont 1")
+ggplotly(gg.acute.b2)
+
+gg.acute.f1 = ggplot(acute.df, aes(x = partner.preference, y = ROI.strength, fill = f1))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "F1")+labs(title = "Result of an acute stress on host and symbiont 1")
+ggplotly(gg.acute.f1)
+
+gg.acute.f2 = ggplot(acute.df, aes(x = partner.preference, y = ROI.strength, fill = f2))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "F2")+labs(title = "Result of an acute stress on host and symbiont 1")
+ggplotly(gg.acute.f2)
+```
+
+
+## Stressor - chronic. 
+A persistent agitation event to both host and symbiont that extends from the halfway point to the 75% mark in the simulation. 
+```{r}
+steps = 10
+part.increments = seq(0.5, .999, length.out = steps)
+roi.increments = seq(0, .999, length.out = steps)
+
+
+samset = tibble(
+  partner.pref = part.increments, 
+  roi.pref = roi.increments
+)
+samsetlong = samset %>% 
+  expand.grid()
+p.pref = as.vector(samsetlong$partner.pref)
+r.pref = as.vector(samsetlong$roi.pref)
+
+b1.pref = rep(NaN, length(p.pref))
+b2.pref = rep(NaN, length(p.pref))
+f1.pref = rep(NaN, length(p.pref))
+f2.pref = rep(NaN, length(p.pref))
+
+
+for(j in 1:length(p.pref)){
+
+primary.weight = p.pref[j]
+#parameter values
+tset = seq(from = 0, to = 10000, by = 0.05)
+a <- 0.25
+p1 <- .5
+p2 <- p1
+mB1 <- .15
+mB2 <- .15
+mN1 <- mB1
+mN2 <- mB2
+r11 <- primary.weight
+r12 <- 1-r11
+r22 <- primary.weight
+r21 <- 1-r22
+epsilon <- 0.15
+mF1 <- 0.1
+mF2 <- mF1
+u1 <- .25
+u2 <- .25
+s11 <- primary.weight
+s12 <- 1-s11
+s22 <- primary.weight
+s21 <- 1-s22
+N0 <- 100
+l = r.pref[j]
+
+#holding vectors and initial conditions
+b1.set = rep(NaN, length(tset)); b1.set[1] <- 50
+b2.set = rep(NaN, length(tset)); b2.set[1] <- 50
+n1.set = rep(NaN, length(tset)); n1.set[1] <- b1.set[1]*0.5
+n2.set = rep(NaN, length(tset)); n2.set[1] <- b2.set[1]*0.5
+f1.set = rep(NaN, length(tset)); f1.set[1] <- b1.set[1]*0.15
+f2.set = rep(NaN, length(tset)); f2.set[1] <- b2.set[1]*0.15
+e.set = rep(NaN, length(tset));  e.set[1]  <- 100 - n1.set[1]-n2.set[1]
+
+#historical sharing percentages based on relative size of each 
+c1f1.set = rep(NaN, length(tset)); c1f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c1f2.set = rep(NaN, length(tset)); c1f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+c2f1.set = rep(NaN, length(tset)); c2f1.set[1] <- f1.set[1]/(f1.set[1]+f2.set[1])
+c2f2.set = rep(NaN, length(tset)); c2f2.set[1] <- f2.set[1]/(f1.set[1]+f2.set[1])
+f1n1.set = rep(NaN, length(tset)); f1n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f1n2.set = rep(NaN, length(tset)); f1n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+f2n1.set = rep(NaN, length(tset)); f2n1.set[1] <- b1.set[1]/(b1.set[1]+b2.set[1])
+f2n2.set = rep(NaN, length(tset)); f2n2.set[1] <- b2.set[1]/(b1.set[1]+b2.set[1])
+
+
+for(i in 2:length(tset)){
+  dt <- tset[i]-tset[i-1]
+  B1 <- b1.set[i-1];  N1 <- n1.set[i-1]; F1 <- f1.set[i-1]
+  B2 <- b2.set[i-1];  N2 <- n2.set[i-1];F2 <- f2.set[i-1]; E <- e.set[i-1]
+  c1tof1 <- c1f1.set[i-1]; c1tof2 <- c1f2.set[i-1]; c2tof1 <- c2f1.set[i-1]; c2tof2 <- c2f2.set[i-1]
+  f1ton1 <- f1n1.set[i-1]; f1ton2 <- f1n2.set[i-1]; f2ton1 <- f2n1.set[i-1]; f2ton2 <- f2n2.set[i-1]
+
+  dB1 <- (p1 * N1 - (a + mB1)*B1)*dt
+  dN1 <- (E*(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)-mN1*N1)*dt
+  dB2 <- (p2 * N2 - (a + mB2)*B2)*dt
+  dN2 <- (E*(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)-mN2*N2)*dt
+  dF1 <- ((a*B1*c1tof1*(1-l)+l*a*B1*r11)*epsilon+(a*B2*c2tof1*(1-l)+l*a*B2*r21)*epsilon-mF1*F1)*dt
+  dF2 <- ((a*B1*c1tof2*(1-l)+l*a*B1*r12)*epsilon+(a*B2*c2tof2*(1-l)+l*a*B2*r22)*epsilon-mF2*F2)*dt
+
+c1tof1.new <- (u1*F1*f1ton1*(1-l)+u1*F1*s11*l)/(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)
+c1tof2.new <- (u2*F2*f2ton1*(1-l)+u2*F2*s21*l)/(u1*F1*f1ton1*(1-l)+u1*F1*s11*l +u2*F2*f2ton1*(1-l)+u2*F2*s21*l)
+c2tof1.new <- (u1*F1*f1ton2*(1-l)+u1*F1*s12*l)/(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)
+c2tof2.new <- (u2*F2*f2ton2*(1-l)+u2*F2*s22*l)/(u1*F1*f1ton2*(1-l)+u1*F1*s12*l+u2*F2*f2ton2*(1-l)+u2*F2*s22*l)
+f1ton1.new <- s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)/(s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)+s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21))
+f1ton2.new <- s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21)/(s11*(a*B1*c1tof1*(1-l)+l*a*B1*r11)+s12*(a*B2*c2tof1*(1-l)+l*a*B2*r21))
+f2ton1.new <- s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)/(s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)+s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22))
+f2ton2.new <- s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22)/(s21*(a*B1*c1tof2*(1-l)+l*a*B1*r12)+s22*(a*B2*c2tof2*(1-l)+l*a*B2*r22))
+  
+if(i == round(0.5*length(tset), 0))
+{p1<- 0.25
+ u1<- 0.15}
+if(i == round(0.75*length(tset), 0))
+{p1<- 0.5
+ u1<- 0.25}
+
+b1.set[i] <- B1 + dB1;n1.set[i] <- N1 + dN1;f1.set[i] <- F1 + dF1
+b2.set[i] <- B2 + dB2;n2.set[i] <- N2 + dN2;f2.set[i] <- F2 + dF2;e.set[i] <- E - (dN1 + dN2)
+  
+c1f1.set[i]<- c1tof1.new;c1f2.set[i]<- c1tof2.new;c2f1.set[i]<- c2tof1.new;c2f2.set[i]<- c2tof2.new
+f1n1.set[i]<- f1ton1.new;f1n2.set[i]<- f1ton2.new;f2n1.set[i]<- f2ton1.new;f2n2.set[i]<- f2ton2.new
+}
+b1.pref[j] = b1.set[length(b1.set)]
+b2.pref[j] = b2.set[length(b2.set)]
+f1.pref[j] = f1.set[length(f1.set)]
+f2.pref[j] = f2.set[length(f2.set)]
+
+}
+
+```
+```{r, echo = FALSE}
+chronic.df = samsetlong  %>% 
+  rename(partner.preference = partner.pref) %>% 
+  rename(ROI.strength = roi.pref) %>% 
+  mutate(ROI.strength = 1-ROI.strength)%>% 
+  mutate(b1 = b1.pref)%>% 
+  mutate(b2 = b2.pref)%>% 
+  mutate(f1 = f1.pref)%>% 
+  mutate(f2 = f2.pref)%>% 
+  mutate(log.host.ratio = log.max(b1/b2))%>% 
+  mutate(log.sym.ratio = log.max(f1/f2))
+
+gg.chronic.b = ggplot(chronic.df, aes(x = partner.preference, y = ROI.strength, fill = log.host.ratio))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "Log(Host 1<br>/Host 2)")+
+  labs(title = "Result of a chronic stress on host and symbiont 1")
+ggplotly(gg.chronic.b)
+
+gg.chronic.f = ggplot(chronic.df, aes(x = partner.preference, y = ROI.strength, fill = log.sym.ratio))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "Log(Fungus 1<br>/Fungus 2)")+labs(title = "Result of a chronic stress on host and symbiont 1")
+ggplotly(gg.chronic.f)
+
+gg.chronic.b1 = ggplot(chronic.df, aes(x = partner.preference, y = ROI.strength, fill = b1))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "B1")+labs(title = "Result of a chronic stress on host and symbiont 1")
+ggplotly(gg.chronic.b1)
+
+gg.chronic.b2 = ggplot(chronic.df, aes(x = partner.preference, y = ROI.strength, fill = b2))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "B2")+labs(title = "Result of a chronic stress on host and symbiont 1")
+ggplotly(gg.chronic.b2)
+
+gg.chronic.f1 = ggplot(chronic.df, aes(x = partner.preference, y = ROI.strength, fill = f1))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "F1")+labs(title = "Result of a chronic stress on host and symbiont 1")
+ggplotly(gg.chronic.f1)
+
+gg.chronic.f2 = ggplot(chronic.df, aes(x = partner.preference, y = ROI.strength, fill = f2))+ geom_tile()+ scale_fill_viridis(discrete=FALSE, option="plasma", name = "F2")+labs(title = "Result of a chronic stress on host and symbiont 1")
+ggplotly(gg.chronic.f2)
+```
+
+
+Each of these stressors find the same result. Maximization of ROI inhibits recovery for the stresed individual. Maximization of partner preference also limits recovery but not as wholly.
+
+--- 
+So far, this preliminary analysis, to me, points to the idea that participating in a closed-off mycorrhizal mutualism perhaps has the benefit of creating an uninvadible habitat for onself. But considering the rate of change globally and the increasing frequency of stressors, relying entirely on a closed-off mutualism network has the potential to increase the vulnerability of the system to wholesale phase changes between mutuals communities. 
+

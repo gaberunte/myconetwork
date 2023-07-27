@@ -1,0 +1,407 @@
+---
+title: "Is the friend of my friend my enemy?"
+title-slide-attributes:
+  data-background-image: /Users/Gabe/Desktop/title_slide.jpg
+  data-background-size: cover
+  data-background-opacity: "0.5"
+#subtitle: "The maintenance of multiple hosts and symbionts in a mutualism network."
+author:
+  name: "Gabe Runte, Holly Moeller"
+  affiliation: University of California, Santa Barbara
+format: 
+  revealjs:
+    embed-resources: true
+    slide-number: true
+    # menu: false
+    preview-links: auto
+    theme: serif
+    footer: "gaberunte.com"
+  # pptx:
+  #   reference-doc: template_gr_esa2023.pptx
+---
+
+```{r, echo = FALSE, warning = F, message=FALSE}
+library(tidyverse)
+library(here)
+library(png)
+library(kableExtra)
+library(ggforce)
+library(gganimate)
+
+b.color = "#85A389"
+n.color = "#A2CDB0"
+f.color = "#F1C27B"
+beige = "#F0F1EA"
+
+#drawings
+fir = readPNG(here("esa", "images", "firsmall.png"))
+oak = readPNG(here("esa", "images", "oaksmall.png"))
+amanita = readPNG(here("esa", "images", "amanitasmall.png"))
+suillus = readPNG(here("esa", "images", "suillussmall.png"))
+
+tp_bg = theme(
+         panel.background = element_rect(fill='transparent'),
+         plot.background = element_rect(fill=beige, color=beige),
+         panel.grid.major = element_blank(),
+         panel.grid.minor = element_blank()
+       )
+```
+
+# Situating a model {background-color="black" background-image="images/pollination.jpg" background-opacity=0.5} 
+
+## On Mutualism {background-color="black" background-image="images/pollination.jpg" background-opacity=0.5 auto-animate=true} 
+
+:::{.fragment }
+::: {style="margin-top: 0px; font-size: 1.15em; color: white;"}
+Theory predicts that cooperation is evolutionarily unstable in the absence of mechanisms that counteract the selective incentive to cheat <br> - M.E. Fredrickson
+:::
+
+:::
+
+
+
+
+## The mycorrhizal symbiosis {background-color="black" background-image="images/myco_root.jpeg" background-opacity=0.75 auto-animate=true} 
+
+<br><br>
+
+::: {.fragment .fade-in}
+Partner preference
+:::
+
+<br><br><br><br><br>
+
+::: {style="margin-top: 0px; font-size: 0.8em; color: #c7c9c8;"}
+Theory predicts that cooperation is evolutionarily unstable in the absence of mechanisms that counteract the selective incentive to cheat <br> - M.E. Fredrickson
+:::
+
+## Partner preference {background-color="white" background-image="images/myco_root.jpeg" background-opacity=0.25 auto-animate=true}
+::: columns
+::: {.column width="55%"}
+
+<br>
+
+:::{.fragment}
+Evolutionary influence
+:::
+
+<br>
+
+:::{.fragment}
+Inherent affinity
+:::
+:::{.fragment}
+<span style="font-size:0.6em;">Not based in partner quality</span>
+:::
+
+
+:::
+::: {.column width="45%"}
+
+<br>
+
+:::{.fragment }
+
+![](images/cheesehead.jpg)
+:::
+:::
+:::
+
+
+
+## The mycorrhizal symbiosis {background-color="black" background-image="images/myco_root.jpeg" background-opacity=0.75 auto-animate=true} 
+
+<br><br>
+
+<span style="color:#c7c9c8;">Partner preference</span>
+
+<br>
+
+:::{.fragment .fade-in}
+Quality assessment (ROI)
+:::
+
+<br><br>
+
+::: {style="margin-top: 0px; font-size: 0.8em; color: #c7c9c8;"}
+Theory predicts that cooperation is evolutionarily unstable in the absence of mechanisms that counteract the selective incentive to cheat <br> - M.E. Fredrickson
+:::
+
+
+## Return on Investment {background-color="white" background-image="images/myco_root.jpeg" background-opacity=0.25 auto-animate=true}
+
+::: columns
+::: {.column width="55%"}
+
+<br>
+
+:::{.fragment fragment-index=1}
+Optimal Investment Strategy
+:::
+
+<br>
+
+:::{.fragment fragment-index=3}
+Evidence in emperical work 
+:::
+
+:::{.fragment fragment-index=4}
+<span style="font-size:0.6em;">Kiers et al. 2011</span><br>
+<span style="font-size:0.6em;">Fellbaum et al. 2014</span><br>
+<span style="font-size:0.6em;">Bogar et al. 2019</span>
+
+:::
+
+:::
+
+::: {.column width="45%"}
+::: {.fragment fragment-index=2}
+![](images/investor.jpeg)
+:::
+
+:::
+:::
+
+## The mycorrhizal symbiosis {background-color="black" background-image="images/myco_root.jpeg" background-opacity=0.75 auto-animate=true} 
+
+<br><br>
+
+Partner preference
+
+<br>
+
+Quality assessment (ROI)
+
+
+<br><br>
+
+::: {style="margin-top: 0px; font-size: 0.8em; color: #c7c9c8;"}
+Theory predicts that cooperation is evolutionarily unstable in the absence of mechanisms that counteract the selective incentive to cheat <br> - M.E. Fredrickson
+:::
+
+
+
+<!-- End of introduction section, begin model description-->
+
+
+# Building a model {background-color="black" background-image="images/model_tree.jpeg" background-opacity=0.65 auto-animate=true}
+## A simple model 
+![](diagrams/1t1f_both.PNG){.absolute top=80 right=0}
+
+## A simple model 
+![](diagrams/1t1f_nutes.PNG){.absolute top=80 right=0}
+
+## A simple model 
+![](diagrams/1t1f_carbon.PNG){.absolute top=80 right=0}
+
+## A simple model 
+![](diagrams/1t1f_all.PNG){.absolute top=80 right=0}
+
+
+## A simple model 
+
+::: columns
+::: {.column width="35%"}
+![](diagrams/crops/1t1f_all.PNG)
+
+:::
+::: {.column width="65%"}
+```{r, eval = F}
+#parameter values 
+# See two tree two fungus section for a full annotation of what each parameter refers to!
+tset = seq(from = 0, to = 100, by = 0.01)
+a <- 0.25
+p1 <- .8
+mB1 <- .15
+mN1 <- 5
+epsilon <- 0.15
+mF1 <- 0.1
+u1 <- .25
+N0 <- 100
+
+#holding vectors and initial conditions
+b1.set = rep(NaN, length(tset)); b1.set[1] <- 65
+n1.set = rep(NaN, length(tset)); n1.set[1] <- b1.set[1]*0.5
+f1.set = rep(NaN, length(tset)); f1.set[1] <- b1.set[1]*0.15
+e.set = rep(NaN, length(tset));  e.set[1]  <- 100 - n1.set[1]
+
+for(i in 2:length(tset)){
+  dt <- tset[i]-tset[i-1]
+  B1 <- b1.set[i-1];  N1 <- n1.set[i-1]; F1 <- f1.set[i-1]; E <- e.set[i-1]
+
+  dB1 <- (p1*N1 - (a+mB1)*B1)*dt
+  dN1 <- (E*(u1*F1) - mN1*N1)*dt
+  dF1 <- ((a*B1)*epsilon - mF1*F1)*dt
+
+  
+b1.set[i] <- B1 + dB1;n1.set[i] <- N1 + dN1;f1.set[i] <- F1 + dF1;e.set[i] <- E - (dN1)}
+
+sim.1t1f = tibble(time = tset) %>% 
+  mutate(b1 = b1.set)%>% 
+  mutate(n1 = n1.set)%>% 
+  mutate(f1 = f1.set)%>% 
+  mutate(e = e.set)  
+
+long.1t1f = sim.1t1f %>% 
+  select(time:f1) %>% 
+  pivot_longer(cols = b1:f1, names_to = "pool", values_to = 'size') %>% 
+  mutate(rep = str_sub(pool, 2,2)) %>% 
+  mutate(pool = str_sub(pool, 1,1)) %>%
+  group_by(pool, rep) %>% 
+ slice(which(row_number() %% 51 == 1)) 
+
+short.1t1f = sim.1t1f %>% 
+  select(time:f1) %>% 
+  pivot_longer(cols = b1:f1, names_to = "pool", values_to = 'size') %>% 
+  mutate(rep = str_sub(pool, 2,2)) %>% 
+  mutate(pool = str_sub(pool, 1,1)) %>%
+  filter(time <= 75)
+
+plot.1t1f = 
+  ggplot(short.1t1f, aes(x = time, y = size, color = pool))+
+  geom_line(aes(linetype = rep), size = 2)+
+  labs(x = "Time (yrs)", y = "Pool Size")+
+  scale_color_manual(name = "", breaks = c("b", "n", "f"), labels = c("Host biomass", "Host nitrogen", "Fungal biomass"), values = c(b.color, n.color, f.color))+
+  theme_classic()+guides(linetype = "none")+theme_minimal()+ guides(alpha =  FALSE)+ tp_bg +transition_reveal(time)
+
+  animate(plot.1t1f, duration = 5, renderer = gifski_renderer(loop = FALSE), 
+          height = 5, width = 7, units = "in", res = 300)
+ anim_save(here("esa", "figures", "savegif.gif"))
+
+```
+:::{.fragment}
+![](figures/savegif.gif)
+:::
+
+:::
+
+:::
+
+## A simple model 
+![](diagrams/1t1f_arrows.PNG){.absolute top=80 right=210}
+
+## A (less) simple model 
+![](diagrams/2t2f_separate_nonit.PNG){.absolute top=80 right=210}
+
+## A (less) simple model 
+![](diagrams/2t2f_separate.PNG){.absolute top=80 right=210}
+
+## A mutualism network model 
+![](diagrams/2t2f_treessplit.PNG){.absolute top=80 right=210}
+
+## A mutualism network model 
+![](diagrams/2t2f_all.PNG){.absolute top=80 right=210}
+
+## A mutualism network model 
+![](diagrams/2t2f_arrows.PNG){.absolute top=80 right=210}
+
+## A mutualism network model 
+![](diagrams/2t2f_arrows_thin.PNG){.absolute top=80 right=210}
+
+<!-- Done with model description, onwards to analyses -->
+
+
+
+
+
+
+
+
+## Next slide
+::: {.incremental}
+- Fungi connect to multiple trees (and vice versa)
+- Evidence for directed sharing of resources (Bogar 2022)
+- Fungi connect to multiple trees (and vice versa)
+- Evidence for directed sharing of resources (Bogar 2022)
+:::
+
+
+
+
+## Why modeling?  
+
+- Define an explicit driver of experimental outcomes
+- Test our intuition for the way systems work 
+- Identify key emperical knowledge gaps
+
+<!-- Discussion up next -->
+
+
+<!-- Thank you and data availability -->
+
+## Thank you{background-color="white" background-image="images/title_slide.jpg" background-opacity=0.25} 
+
+::: columns
+::: {.column width="15%"}
+
+<br>
+<br>
+<br>
+
+:::{.fragment fragment-index=2}
+![](images/holly.jpg){.absolute top=265 left=0 width="125" height="125"}
+:::
+
+<br>
+
+:::{.fragment fragment-index=3}
+![](images/hanna.jpg){.absolute top=500 left=0 width="125" height="125"}
+:::
+:::
+
+::: {.column width="50%"}
+
+<br>
+
+:::{.fragment fragment-index=1}
+<span style="font-size:0.8em;">All of you!</span>
+:::
+
+<br>
+
+:::{.fragment fragment-index=2}
+<span style="font-size:0.8em;">Advisor: Holly Moeller <br> @mixotrophe</span>
+:::
+
+<br>
+<br>
+
+:::{.fragment fragment-index=3}
+<span style="font-size:0.8em;">Artist: Hanna Yang <br> @aytchwye</span>
+:::
+:::{.fragment fragment-index=3}
+![](images/amanitasmall.png){.absolute bottom=-10 left=200 width="35" height="35"}
+![](images/suillussmall.png){.absolute bottom=-10 left=240 width="30" height="30"}
+![](images/firsmall.png){.absolute bottom=-10 left=150 width="75" height="75"}
+![](images/oaksmall.png){.absolute bottom=-15 left=265 width="70" height="70"}
+:::
+:::
+
+::: {.column width="10%"}
+
+<br>
+<br>
+<br>
+
+![](images/quarto.png)
+
+<br>
+
+![](images/github.png)
+
+:::
+::: {.column width="25%"}
+
+<br>
+<br>
+<br>
+<span style="font-size:0.6em;">gaberunte.com/esa2023 </span>
+
+<br>
+<br>
+
+<span style="font-size:0.6em;">github.com/gaberunte/myconetwork</span>
+:::
+:::
+# Supplementary materials
+

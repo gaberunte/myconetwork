@@ -1,0 +1,240 @@
+---
+title: "Equations"
+author: "Gabe Runte"
+date: "2023-04-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(kableExtra)
+library(tidyverse)
+```
+
+$$
+\begin{eqnarray}
+\dot{B} &=& \rho N - (a+m_B)B \\[2ex]
+\dot{C} &=& aB -rFC\\[2ex]
+\dot{F} &=& erFC-m_FF \\[2ex]
+\dot{N} &=& EusF-m_NN \\[2ex]
+\dot{E} &=& -\dot{N}
+\end{eqnarray}
+$$
+
+<br>
+<br>
+<br>
+<br>
+
+
+$$
+\begin{eqnarray}
+\dot{B_i} &=& \rho_i N_i - (a_i+m_{B_i})B_i \\[2ex]
+\dot{C_i} &=& a_iB_i -r_iFC_i\\[2ex]
+\dot{F} &=& \sum_ie_ir_iFC_i-m_FF \\[2ex]
+\dot{N_i} &=& Es_iuF-m_NN_i \\[2ex]
+\dot{E} &=& -\sum_i\dot{N_i}
+\end{eqnarray}
+$$
+
+<br>
+<br>
+$$
+\begin{eqnarray}
+\dot{B} &=& \rho N - (a+m_B)B \\[2ex]
+\dot{C} &=& aB -\sum_jr_{j}F_jC\\[2ex]
+\dot{F_j} &=& e_{j}r_{j}F_jC-m_{F}F_j \\[2ex]
+\dot{N} &=& E\sum_jsu_jF_j-m_NN \\[2ex]
+\dot{E} &=& -\dot{N}
+\end{eqnarray}
+$$
+<br>
+<br>
+
+$$
+\begin{eqnarray}
+\dot{B} &=& \rho N - (a+m_B)B \\[2ex]
+\dot{C} &=& aB -\sum_j\left[\frac{r_{j}u_jF_j}{\sum_j u_jF_j}\right]C\\[2ex]
+\dot{F_j} &=& e_{j}\frac{r_{j}u_jF_j}{\sum_j u_jF_j}C-m_{F}F_j \\[2ex]
+\dot{N} &=& E\sum_jsu_jF_j-m_NN \\[2ex]
+\dot{E} &=& -\dot{N}
+\end{eqnarray}
+$$
+
+
+<br>
+<br>
+<br>
+<br>
+
+
+$$
+\begin{eqnarray}
+\dot{B_i} &=& \rho_i N_i - (a_i+m_{B})B_i \\[2ex]
+\dot{C_i} &=&  a_iB_i -\sum_jr_{ij}F_jC_i\\[2ex]
+\dot{F_j} &=& \sum_ie_{ji}r_{ij}F_jC_i-m_{F}F_j \\[2ex]
+\dot{N_i} &=& E\sum_js_{ji}u_jF_j-m_{N}N_i \\[2ex]
+\dot{E} &=& -\sum_i\dot{N_i}
+\end{eqnarray}
+$$
+
+<br>
+<br>
+<br>
+<br>
+
+
+$$
+\begin{eqnarray}
+\dot{B_i} &=& \rho_i N_i - (a_i+m_{B_i})B_i \\[2ex]
+\dot{C_i} &=& a_iB_i -r_iFC_i\\[2ex]
+\dot{F} &=& \sum_ie_ir_iFC_i-m_FF \\[2ex]
+\dot{N_i} &=& EF \frac{s_ie_ir_iC_i}{\sum_i e_ir_iC_i}-m_NN_i \\[2ex]
+\dot{E} &=& \sum_i-\dot{N_i}
+\end{eqnarray}
+$$
+<br>
+<br>
+<br>
+
+$$
+\begin{eqnarray}
+\dot{B_i} &=& \rho_i N_i - (a_i+m_{B})B_i \\[2ex]
+\dot{C_i} &=&  a_iB_i -\sum_j\left[\frac{r_{ij}u_jF_j}{\sum_j u_jF_j}\right]C_i\\[2ex]
+\dot{F_j} &=& \sum_i\left[ e_{ij}\frac{r_{ij}u_jF_j}{\sum_j u_jF_j}C_i\right]-m_{F}F_j \\[2ex]
+\dot{N_i} &=& \sum_j\left[F_j\frac{s_{ij}e_{ij}r_{ij}C_i}{\sum_i e_{ij}r_{ij}C_i}\right]E-m_{N}N_i \\[2ex]
+\dot{E} &=& -\sum_i\dot{N_i}
+\end{eqnarray}
+$$
+    
+<br>
+<br>      
+
+$$
+\begin{eqnarray}
+allocation_{C_itoF_j} &=& s_{ji}\frac{Nitrogen~Received_{j}}{\sum_jNitrogen~Received~{j}}\\[2ex]
+\Psi_{ij} &=& \frac{u_jF_js_{ji}~\Upsilon_{ji}}{\sum_ju_jF_js_{ji}~\Upsilon_{ji}}\\[2ex]
+\sum_i \Upsilon_{ji} &=& 1\\ \\ \\[2ex]
+
+allocation_{F_jtoN_i} &=& r_{ij}\frac{e_{ji}~Carbon~Received_{i}}{\sum_ie_{ji}~Carbon~Received_{i}}\\[2ex]
+\Upsilon_{ji} &=& \frac{e_{ji}~C_i r_{ij}~\Psi_{ij}}{\sum_ie_{ji}~C_i r_{ij}~\Psi_{ij}}\\[2ex]
+
+\sum_i \Upsilon_{ji} &=& 1\\[2ex]
+
+\end{eqnarray}
+$$
+
+
+## Simplified 2T2F with above allocation terms integrated
+$$
+\begin{eqnarray}
+\dot{B_i} &=& \rho_i N_i - (a_i+m_{B})B_i \\[2ex]
+\dot{C_i} &=&  a_iB_i -C_i\sum_jr_{ij}\Psi_{ij} \\[2ex]
+\dot{F_j} &=& \sum_iC_ir_{ij}\Psi_{ij}-m_{F}F_j \\[2ex]
+
+\dot{N_i} &=& E \sum_ju_js_{ji}F_j\Upsilon_{ji}-m_{N}N_i \\[2ex]
+
+\dot{E} &=& -\sum_i\dot{N_i}
+\end{eqnarray}
+$$
+
+
+$$
+\begin{eqnarray}
+\dot{B_i} &=& \rho_i N_i - (a_i+m_{B})B_i \\[2ex]
+\dot{C_i} &=&  a_iB_i -C_i\sum_j[r_{ij}\Psi_{ij}(1-ROI)+r_{ij}ROI] \\[2ex]
+\dot{F_j} &=& \sum_i[C_ir_{ij}\Psi_{ij}(1-ROI)+r_{ij}ROI]-m_{F}F_j \\[2ex]
+
+\dot{N_i} &=& E F_j\sum_j [u_js_{ji}\Upsilon_{ji}(1-ROI)+s_{ji}ROI]-m_{N}N_i \\[2ex]
+
+\dot{E} &=& -\sum_i\dot{N_i}
+\end{eqnarray}
+$$
+
+
+```{r, echo = F}
+
+params = tibble(Class = c("State variables","", "", "","", "Parameters", "", "", "", "", "", "", ""),
+                Symbol = c("B", "N", "C", "F", "E", "$\\Psi$", "$\\Upsilon$", "$\\rho$", "a", "r","s", "u", "e"),
+                Units = c("C", "N", "C", "C","N", "None", "None", "C/Nt", "1/t","1/t", "1/t", "1/Nt", "C/C"),
+                Description = c("Biomass of host tree", "Host Nitrogen", "Host Carbon", "Fungal biomass", 
+                                "Environmental N", "Plant allocation based on N income", "Fungal allocation based on carbon income", 
+                                "Photosynthetic capacity", "allocation rate", "host preference for fungus","Fungal preference for host", "fungal uptake rate", "fungal conversion efficiency"))
+
+kableExtra::kable(params, escape = FALSE)%>%
+  kable_styling() %>%
+  column_spec(1, bold = T, border_right = T) %>%
+  row_spec(0, bold = T, font_size = 18, extra_css = "border-bottom: 1px solid;") %>% 
+  row_spec(5, extra_css = "border-bottom: 1px solid;") %>% 
+  kable_paper("hover", full_width = F)
+```
+
+
+
+
+
+
+```{r, echo = F}
+
+params = tibble(Class = c("State variables","", "","", "Parameters", "", "", "", "",  "", "",""),
+                Symbol = c("B", "N",  "F", "E", "$\\Psi$", "$\\Upsilon$", "$\\rho$",  "r","s", "u", "e", "$m_x$"),
+                Units = c("C", "N",  "C","N", "None", "None", "$\\frac{C}{Nt}$", "None", "None", 
+                          "$\\frac{1}{Nt}$", "None", "$\\frac{1}{t}$"),
+                Description = c("Biomass of host tree", "Host Nitrogen", "Fungal biomass", 
+                                "Environmental N", "Plant allocation based on N income", "Fungal allocation based on carbon income", 
+                                "Photosynthetic capacity", "host preference for fungus","Fungal preference for host", "fungal uptake rate", "fungal conversion efficiency", "Mortality of 'x'"))
+
+kableExtra::kable(params, escape = FALSE)%>%
+  kable_styling() %>%
+  column_spec(1, bold = T, border_right = T) %>%
+  row_spec(0, bold = T, font_size = 18, extra_css = "border-bottom: 1px solid;") %>% 
+  row_spec(4, extra_css = "border-bottom: 1px solid;") %>% 
+  kable_paper("hover", full_width = F)
+```
+
+$$
+\begin{eqnarray}
+allocation_{B_itoF_j} &=& \frac{Nitrogen~Received_{j}}{\sum_jNitrogen~Received~{j}}\\[2ex]
+\Psi_{ij} &=& \frac{r_{ij}u_jF_js_{ji}~\Upsilon_{ji}}{\sum_jr_{ij}u_jF_js_{ji}~\Upsilon_{ji}}\\[2ex]
+\sum_i \Psi_{ij} &=& 1\\ \\ \\[2ex]
+
+allocation_{F_jtoN_i} &=& \frac{e_{ji}~Carbon~Received_{i}}{\sum_ie_{ji}~Carbon~Received_{i}}\\[2ex]
+\Upsilon_{ji} &=& \frac{s_{ji}e_{ji}~B_i r_{ij}~\Psi_{ij}}{\sum_is_{ji}e_{ji}~B_i r_{ij}~\Psi_{ij}}\\[2ex]
+
+\sum_i \Upsilon_{ji} &=& 1\\[2ex]
+
+\end{eqnarray}
+$$
+
+$$
+\begin{eqnarray}
+\dot{B_i} &=& \rho_i N_i - (\sum_jr_{ij}\Psi_{ij}+m_{B})B_i \\[2ex]
+\dot{F_j} &=& \sum_iB_ir_{ij}\Psi_{ij}-m_{F}F_j \\[2ex]
+
+\dot{N_i} &=& E \sum_ju_js_{ji}F_j\Upsilon_{ji}-m_{N}N_i \\[2ex]
+
+\dot{E} &=& -\sum_i\dot{N_i}
+\end{eqnarray}
+$$
+
+$$
+\begin{eqnarray}
+allocation_{B_itoF_j} &=& \frac{Nitrogen~Received_{j}}{\sum_jNitrogen~Received~{j}}\\[2ex]
+\Psi_{ij} &=& \frac{u_jF_js_{ji}~\Upsilon_{ji}}{\sum_ju_jF_js_{ji}~\Upsilon_{ji}}\\[2ex]
+\sum_i \Psi_{ij} &=& 1\\ \\ \\[2ex]
+
+allocation_{F_jtoN_i} &=& r_{ij}\frac{e_{ji}~Carbon~Received_{i}}{\sum_ie_{ji}~Carbon~Received_{i}}\\[2ex]
+\Upsilon_{ji} &=& \frac{e_{ji}~B_i r_{ij}~\Psi_{ij}}{\sum_ie_{ji}~B_i r_{ij}~\Psi_{ij}}\\[2ex]
+
+\sum_i \Upsilon_{ji} &=& 1\\[2ex]
+
+\end{eqnarray}
+$$
+
+
+
+
+
+
+
